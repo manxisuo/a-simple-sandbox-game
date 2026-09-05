@@ -19,6 +19,8 @@ export interface RuntimeSettings {
     viewDistance: number;
     fogFar: number;
     shadows: boolean;
+    showSun: boolean;
+    showMoon: boolean;
   };
 }
 
@@ -40,7 +42,9 @@ export const DEFAULT_RUNTIME_SETTINGS: RuntimeSettings = {
   visual: {
     viewDistance: GAME_CONFIG.world.viewDistance,
     fogFar: GAME_CONFIG.world.fogFar,
-    shadows: true
+    shadows: true,
+    showSun: true,
+    showMoon: true
   }
 };
 
