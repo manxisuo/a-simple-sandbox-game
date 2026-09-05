@@ -49,12 +49,13 @@ export class DayNightSystem {
 
     const px = this.player.position.x;
     const pz = this.player.position.z;
-    this.sunLight.position.set(px + Math.cos(angle) * 48, Math.max(-8, sunHeight * 48), pz + Math.sin(angle) * 38);
-    this.sunLight.target.position.set(px, 0, pz);
+    const terrainY = this.world.getHeight(px, pz);
+    this.sunLight.position.set(px + Math.cos(angle) * 48, terrainY + Math.max(-8, sunHeight * 48), pz + Math.sin(angle) * 38);
+    this.sunLight.target.position.set(px, terrainY, pz);
     this.sunLight.intensity = 0.12 + daylight * 2.25;
     this.sunLight.color.set(daylight < 0.45 ? 0xff9c72 : 0xffffff);
 
-    this.moonLight.position.set(px - 24, 36, pz - 16);
+    this.moonLight.position.set(px - 24, terrainY + 36, pz - 16);
     this.hemisphereLight.intensity = 0.18 + daylight * 1.55;
     this.moonLight.intensity = (1 - daylight) * 0.7;
 
@@ -73,7 +74,8 @@ export class DayNightSystem {
       `<strong>${phase}</strong> · ${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}` +
       `<br>Crystals: <strong>${this.collectibles.collected}/${this.collectibles.total}</strong>` +
       `<br>Chunk: <strong>${chunk.x}, ${chunk.z}</strong> · loaded ${this.world.chunkManager.loadedChunkCount}` +
-      '<br><span style="opacity:.72">Shift to sprint · the world streams as you move</span>'
+      `<br>Terrain elevation: <strong>${terrainY.toFixed(1)}m</strong>` +
+      '<br><span style="opacity:.72">Shift to sprint · follow the hills into the distance</span>'
     );
   }
 }

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 export class CollectibleSystem {
-  constructor({ scene, player, ui, rand }) {
+  constructor({ scene, player, ui, rand, getGroundHeight }) {
     this.player = player;
     this.ui = ui;
     this.collected = 0;
@@ -26,7 +26,7 @@ export class CollectibleSystem {
 
     for (const [x, z] of positions) {
       const crystal = new THREE.Mesh(geometry, material.clone());
-      crystal.position.set(x, 1.15, z);
+      crystal.position.set(x, getGroundHeight(x, z) + 1.15, z);
       crystal.castShadow = true;
       crystal.userData.baseY = crystal.position.y;
       crystal.userData.phase = rand() * Math.PI * 2;

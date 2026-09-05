@@ -5,7 +5,18 @@ export const GAME_CONFIG = {
     viewDistance: 3,
     objectsPerChunk: 7,
     fogNear: 42,
-    fogFar: 105
+    fogFar: 105,
+    terrain: {
+      segments: 32,
+      macroScale: 0.0045,
+      macroAmplitude: 8.5,
+      hillScale: 0.014,
+      hillAmplitude: 3.2,
+      detailScale: 0.045,
+      detailAmplitude: 0.55,
+      spawnFlatRadius: 11,
+      spawnBlendRadius: 24
+    }
   },
   player: {
     height: 1.7,
