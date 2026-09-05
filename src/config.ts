@@ -12,10 +12,10 @@ export const GAME_CONFIG = {
       segments: 32,
       macroScale: 0.0045,
       macroAmplitude: 8.5,
-      hillScale: 0.014,
-      hillAmplitude: 3.2,
-      detailScale: 0.045,
-      detailAmplitude: 0.55,
+      hillScale: 0.019,
+      hillAmplitude: 4.4,
+      detailScale: 0.05,
+      detailAmplitude: 0.7,
       spawnFlatRadius: 11,
       spawnBlendRadius: 24
     }
