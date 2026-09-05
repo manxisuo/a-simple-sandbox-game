@@ -13,21 +13,21 @@ export class CelestialRenderer {
   constructor({ scene }: CelestialRendererOptions) {
     const sunCore = new THREE.Mesh(
       new THREE.SphereGeometry(2.3, 20, 14),
-      new THREE.MeshBasicMaterial({ color: 0xffd56a })
+      new THREE.MeshBasicMaterial({ color: 0xffd56a, fog: false })
     );
     const sunHalo = new THREE.Mesh(
       new THREE.SphereGeometry(3.25, 16, 12),
-      new THREE.MeshBasicMaterial({ color: 0xffc95a, transparent: true, opacity: 0.16, depthWrite: false })
+      new THREE.MeshBasicMaterial({ color: 0xffc95a, transparent: true, opacity: 0.16, depthWrite: false, fog: false })
     );
     this.sun.add(sunHalo, sunCore);
 
     const moonCore = new THREE.Mesh(
       new THREE.IcosahedronGeometry(2.15, 2),
-      new THREE.MeshBasicMaterial({ color: 0xd8e5f0 })
+      new THREE.MeshBasicMaterial({ color: 0xd8e5f0, fog: false })
     );
     const moonGlow = new THREE.Mesh(
       new THREE.SphereGeometry(2.8, 14, 10),
-      new THREE.MeshBasicMaterial({ color: 0x9fc4ff, transparent: true, opacity: 0.1, depthWrite: false })
+      new THREE.MeshBasicMaterial({ color: 0x9fc4ff, transparent: true, opacity: 0.1, depthWrite: false, fog: false })
     );
     this.moon.add(moonGlow, moonCore);
 
