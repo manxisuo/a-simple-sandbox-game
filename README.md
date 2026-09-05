@@ -109,7 +109,7 @@ The first concrete version of this separation already exists for entities, and t
 src/core/entities/                  # renderer-independent entity simulation
 src/rendering/three/                # Three.js presentation, including player avatar
 src/input/                          # browser-specific interaction/input
-src/camera/                         # camera/view behavior kept outside PlayerController
+src/player/CameraController.ts      # first/third-person camera behavior outside PlayerController
 ```
 
 The intended invariant is that code under `src/core/` does not import `three`, DOM APIs, rendering objects, or UI objects.
