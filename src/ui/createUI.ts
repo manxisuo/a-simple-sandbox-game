@@ -1,12 +1,18 @@
+import type * as THREE from 'three';
+import type { UIController } from '../types';
+
 const uiFont = 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
 
-function createElement(tag, styles = {}) {
+function createElement<K extends keyof HTMLElementTagNameMap>(
+  tag: K,
+  styles: Partial<CSSStyleDeclaration> = {}
+): HTMLElementTagNameMap[K] {
   const element = document.createElement(tag);
   Object.assign(element.style, styles);
   return element;
 }
 
-export function createUI(renderer) {
+export function createUI(renderer: THREE.WebGLRenderer): UIController {
   const overlay = createElement('div', {
     position: 'fixed', inset: '0', display: 'flex', flexDirection: 'column',
     alignItems: 'center', justifyContent: 'center', gap: '12px', color: 'white',
@@ -15,8 +21,12 @@ export function createUI(renderer) {
     cursor: 'pointer', zIndex: '20'
   });
   overlay.innerHTML = '<div>Click to explore</div><span>WASD move · Mouse look · Space jump · Shift sprint · ESC release</span>';
-  overlay.querySelector('span').style.fontSize = '15px';
-  overlay.querySelector('span').style.fontWeight = '500';
+
+  const hint = overlay.querySelector<HTMLSpanElement>('span');
+  if (hint) {
+    hint.style.fontSize = '15px';
+    hint.style.fontWeight = '500';
+  }
 
   const hud = createElement('div', {
     position: 'fixed', left: '18px', top: '18px', padding: '11px 13px', minWidth: '180px',
@@ -44,7 +54,7 @@ export function createUI(renderer) {
     background: 'rgba(10,20,34,0.36)', border: '1px solid rgba(255,255,255,0.28)', borderRadius: '8px',
     fontFamily: uiFont, fontSize: '12px', fontWeight: '650', pointerEvents: 'none', zIndex: '9'
   });
-  badge.textContent = 'Made with Codex · Sandbox v2';
+  badge.textContent = 'Three.js + TypeScript · Sandbox';
 
   document.body.append(overlay, hud, message, crosshair, badge);
 
@@ -58,16 +68,16 @@ export function createUI(renderer) {
   let messageTimer = 0;
 
   return {
-    setHud(html) {
+    setHud(html: string): void {
       hud.innerHTML = html;
     },
-    showMessage(text, seconds = 2.2) {
+    showMessage(text: string, seconds = 2.2): void {
       message.textContent = text;
       messageTimer = seconds;
       message.style.opacity = '1';
       message.style.transform = 'translateX(-50%) translateY(0)';
     },
-    update(delta) {
+    update(delta: number): void {
       if (messageTimer <= 0) return;
       messageTimer -= delta;
       if (messageTimer <= 0) {

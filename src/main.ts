@@ -1,6 +1,7 @@
-import { Game } from './Game.js';
+import { Game } from './Game';
 
-const app = document.querySelector('#app');
+const app = document.querySelector<HTMLElement>('#app');
+if (!app) throw new Error('Missing #app root element');
 
 document.body.style.margin = '0';
 document.body.style.overflow = 'hidden';
