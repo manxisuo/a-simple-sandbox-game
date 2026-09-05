@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { AudioSystem } from './audio/AudioSystem';
 import { CameraController } from './camera/CameraController';
 import { GAME_CONFIG } from './config';
 import { EntitySystem } from './core/entities/EntitySystem';
@@ -32,6 +33,7 @@ export class Game {
   private readonly camera: THREE.PerspectiveCamera;
   private readonly cameraController: CameraController;
   private readonly ui: UIController;
+  private readonly audio: AudioSystem;
   private readonly world: WorldRuntime;
   private readonly worldConfig: WorldConfig;
   private readonly player: PlayerController;
@@ -66,6 +68,7 @@ export class Game {
 
     this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 240);
     this.ui = createUI(this.renderer, this.settings.language);
+    this.audio = new AudioSystem(this.settings.audio);
     this.world = createWorld(this.scene, this.worldConfig);
 
     this.player = new PlayerController({
@@ -171,6 +174,11 @@ export class Game {
         this.dayNight.setCelestialVisibility(settings.visual.showSun, settings.visual.showMoon);
         saveRuntimeSettings(this.settings);
       },
+      onAudioChanged: settings => {
+        this.settings = settings;
+        this.audio.setSettings(settings.audio);
+        saveRuntimeSettings(this.settings);
+      },
       onApplyTerrain: settings => {
         this.settings = settings;
         saveRuntimeSettings(this.settings);
@@ -207,6 +215,11 @@ export class Game {
     this.entityRenderer.sync(ordinary, time, delta);
     this.echoFieldRenderer.update(echoField, time);
     this.entityInteraction.update(ordinary);
+    this.audio.setWorldState({
+      daylight: this.dayNight.daylight,
+      anomalyInside: Boolean(echoField?.state.playerInside),
+      anomalyIntensity: Number(echoField?.state.intensity ?? 1)
+    });
   }
 
   private applyTimeSettings(): void {
@@ -226,6 +239,7 @@ export class Game {
   }
 
   private handleEntityEvent(event: EntityEvent): void {
+    this.audio.handleEvent(event);
     const locale = this.settings.language;
     switch (event.type) {
       case 'companion.petted':
