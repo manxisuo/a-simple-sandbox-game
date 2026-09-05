@@ -16,16 +16,17 @@ interface DayNightSystemOptions {
 }
 
 export class DayNightSystem {
-  private readonly scene: THREE.Scene;
-  private readonly renderer: THREE.WebGLRenderer;
-  private readonly world: WorldRuntime;
-  private readonly player: PlayerController;
-  private readonly ui: UIController;
-  private readonly collectibles: CollectibleSystem;
-  private readonly atmosphere: AtmosphereSystem;
-  private readonly config: DayNightConfig;
-  private elapsed: number;
+  readonly scene: THREE.Scene;
+  readonly renderer: THREE.WebGLRenderer;
+  readonly world: WorldRuntime;
+  readonly player: PlayerController;
+  readonly ui: UIController;
+  readonly collectibles: CollectibleSystem;
+  readonly atmosphere: AtmosphereSystem;
+  readonly config: DayNightConfig;
+  daylight = 1;
 
+  private elapsed: number;
   private readonly daySky = new THREE.Color(0x78bdff);
   private readonly duskSky = new THREE.Color(0xe58a68);
   private readonly nightSky = new THREE.Color(0x071323);
@@ -67,10 +68,10 @@ export class DayNightSystem {
     const cycle = (this.elapsed % this.config.cycleSeconds) / this.config.cycleSeconds;
     const angle = cycle * Math.PI * 2 - Math.PI / 2;
     const sunHeight = Math.sin(angle);
-    const daylight = THREE.MathUtils.smoothstep(sunHeight, -0.22, 0.35);
-    const duskAmount = Math.max(0, 1 - Math.abs(sunHeight) / 0.34) * (1 - Math.abs(daylight - 0.5) * 1.2);
+    this.daylight = THREE.MathUtils.smoothstep(sunHeight, -0.22, 0.35);
+    const duskAmount = Math.max(0, 1 - Math.abs(sunHeight) / 0.34) * (1 - Math.abs(this.daylight - 0.5) * 1.2);
 
-    const sky = this.nightSky.clone().lerp(this.daySky, daylight);
+    const sky = this.nightSky.clone().lerp(this.daySky, this.daylight);
     if (duskAmount > 0) sky.lerp(this.duskSky, duskAmount * 0.56);
     if (this.scene.background instanceof THREE.Color) this.scene.background.copy(sky);
     if (this.scene.fog instanceof THREE.Fog) this.scene.fog.color.copy(sky);
@@ -80,22 +81,22 @@ export class DayNightSystem {
     const terrainY = this.world.getHeight(px, pz);
     this.sunLight.position.set(px + Math.cos(angle) * 48, terrainY + Math.max(-8, sunHeight * 48), pz + Math.sin(angle) * 38);
     this.sunLight.target.position.set(px, terrainY, pz);
-    this.sunLight.intensity = 0.12 + daylight * 2.25;
-    this.sunLight.color.set(daylight < 0.45 ? 0xff9c72 : 0xffffff);
+    this.sunLight.intensity = 0.12 + this.daylight * 2.25;
+    this.sunLight.color.set(this.daylight < 0.45 ? 0xff9c72 : 0xffffff);
 
     this.moonLight.position.set(px - 24, terrainY + 36, pz - 16);
-    this.hemisphereLight.intensity = 0.18 + daylight * 1.55;
-    this.moonLight.intensity = (1 - daylight) * 0.7;
+    this.hemisphereLight.intensity = 0.18 + this.daylight * 1.55;
+    this.moonLight.intensity = (1 - this.daylight) * 0.7;
 
-    this.world.fireLight.intensity = 1.4 + (1 - daylight) * 2.7;
-    this.world.cloudMaterial.opacity = 0.24 + daylight * 0.6;
-    this.world.setDaylight(daylight);
-    this.renderer.toneMappingExposure = 0.62 + daylight * 0.48;
-    this.atmosphere.setNightAmount(1 - daylight);
+    this.world.fireLight.intensity = 1.4 + (1 - this.daylight) * 2.7;
+    this.world.cloudMaterial.opacity = 0.24 + this.daylight * 0.6;
+    this.world.setDaylight(this.daylight);
+    this.renderer.toneMappingExposure = 0.62 + this.daylight * 0.48;
+    this.atmosphere.setNightAmount(1 - this.daylight);
 
     const hours = Math.floor(cycle * 24);
     const minutes = Math.floor((cycle * 24 - hours) * 60);
-    const phase = daylight > 0.68 ? 'Day' : daylight > 0.22 ? 'Twilight' : 'Night';
+    const phase = this.daylight > 0.68 ? 'Day' : this.daylight > 0.22 ? 'Twilight' : 'Night';
     const chunk = this.world.chunkManager.currentChunk;
 
     this.ui.setHud(
@@ -103,7 +104,7 @@ export class DayNightSystem {
       `<br>Crystals: <strong>${this.collectibles.collected}/${this.collectibles.total}</strong>` +
       `<br>Chunk: <strong>${chunk.x}, ${chunk.z}</strong> · loaded ${this.world.chunkManager.loadedChunkCount}` +
       `<br>Terrain elevation: <strong>${terrainY.toFixed(1)}m</strong>` +
-      '<br><span style="opacity:.72">Shift to sprint · follow the hills into the distance</span>'
+      '<br><span style="opacity:.72">Shift to sprint · E to interact · watch how entities affect each other</span>'
     );
   }
 }
