@@ -16,10 +16,13 @@ Already implemented or actively being established:
 - deterministic chunk streaming
 - procedural continuous terrain with stronger local relief / steeper hills
 - day/night and atmosphere
+- persistent runtime settings
+- Chinese / English UI switching with localized gameplay feedback
 - entity IDs, state, interaction, and behavior
 - renderer-independent entity core
 - Three.js entity rendering adapter
 - entity-domain events and entity-to-entity effects
+- a persistent companion with loose-follow locomotion, affection, world awareness, day/night personality, and semantic interest/activity state
 - an initial split between player simulation and camera/view control
 
 ## Near term
@@ -37,6 +40,8 @@ Likely work:
 - better event semantics
 - observable entity state for debugging
 - basic tests for renderer-independent entity logic
+
+The companion is now an important pressure test: it selects semantic interests such as an awake Glow Bloom, a charged Resonance Spire, a touched Memory Stone, or a greeted Whisperling while still preserving its bond/follow constraints.
 
 Do not generalize into a large ECS or universal framework unless the actual game requires it.
 
@@ -65,6 +70,7 @@ Useful experiments include:
 - creatures attracted to or repelled by environmental states
 - entities that trigger remote or delayed effects
 - local chains of cause and effect
+- semantic regions/anomalies that affect multiple systems at once
 
 The aim is to make the world feel like a system rather than a collection of props.
 
@@ -80,6 +86,7 @@ entity.awakened
 entity.moved
 world.night-started
 area.visited
+anomaly.entered
 resonance.pulse
 weather.changed
 ```
@@ -143,12 +150,14 @@ Progress so far:
 - entity simulation separated from Three.js rendering
 - camera/view control moved out of `PlayerController`
 - third-person avatar kept as a Three.js-facing renderer concern
+- localization kept outside the renderer-independent core; semantic IDs/events are mapped to user-facing text at presentation/input boundaries
 
 Next candidates:
 
 - split procedural world description from Three.js chunk construction
 - continue separating player simulation from browser input
 - split game time from day/night rendering
+- introduce renderer-independent semantic world regions when anomalies/environmental rule zones need them
 - move renderer-specific types out of shared/domain types
 
 Target property:
@@ -308,6 +317,7 @@ The following should remain true as the project grows:
 - `src/core/**` must not depend on Three.js or browser UI APIs.
 - Three.js objects are presentation/runtime adapter details, not semantic world state.
 - camera/view concerns should not be folded back into player simulation.
+- localized strings stay outside renderer-independent core logic; semantic IDs/state/events cross the boundary instead.
 - AI should operate on semantic state/events/actions, never raw scene graphs.
 - deterministic procedural generation and mutable world history remain conceptually separate.
 - game rules validate all actions that change authoritative state.
