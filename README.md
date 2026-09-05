@@ -18,7 +18,7 @@ https://manxisuo.github.io/a-simple-sandbox-game/
 - switchable first-person / third-person camera
 - simple third-person player avatar
 - deterministic infinite chunk streaming
-- seamless procedural height-field terrain
+- seamless procedural height-field terrain with more varied, steeper hills
 - day/night cycle, atmosphere, clouds, fireflies, campfire lighting
 - collectibles and simple environmental objects
 - general-purpose entity + interaction system
