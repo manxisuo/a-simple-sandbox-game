@@ -1,7 +1,10 @@
 import * as THREE from 'three';
 import { GAME_CONFIG } from './config';
-import { EntitySystem } from './entities/EntitySystem';
+import { EntitySystem } from './core/entities/EntitySystem';
+import type { EntityEvent } from './core/entities/types';
+import { EntityInteractionController } from './input/EntityInteractionController';
 import { PlayerController } from './player/PlayerController';
+import { ThreeEntityRenderer } from './rendering/three/ThreeEntityRenderer';
 import { createWorld } from './world/createWorld';
 import { CollectibleSystem } from './systems/CollectibleSystem';
 import { AtmosphereSystem } from './systems/AtmosphereSystem';
@@ -19,6 +22,8 @@ export class Game {
   private readonly world: WorldRuntime;
   private readonly player: PlayerController;
   private readonly entities: EntitySystem;
+  private readonly entityRenderer: ThreeEntityRenderer;
+  private readonly entityInteraction: EntityInteractionController;
   private readonly collectibles: CollectibleSystem;
   private readonly atmosphere: AtmosphereSystem;
   private readonly dayNight: DayNightSystem;
@@ -53,13 +58,19 @@ export class Game {
     });
 
     this.entities = new EntitySystem({
-      scene: this.scene,
-      camera: this.camera,
-      playerPosition: this.player.position,
-      ui: this.ui,
       rand: this.world.rand,
       getGroundHeight: (x, z) => this.world.getHeight(x, z)
     });
+    this.entityRenderer = new ThreeEntityRenderer(this.scene);
+    this.entityInteraction = new EntityInteractionController({
+      camera: this.camera,
+      playerPosition: this.player.position,
+      entities: this.entities,
+      renderer: this.entityRenderer,
+      ui: this.ui,
+      getTime: () => this.clock.elapsedTime
+    });
+    this.entities.onEvent(event => this.handleEntityEvent(event));
 
     this.collectibles = new CollectibleSystem({
       scene: this.scene,
@@ -89,6 +100,15 @@ export class Game {
 
     this.bindWindowEvents();
     this.dayNight.update(0);
+    this.entities.update({
+      time: 0,
+      delta: 0,
+      playerPosition: this.player.position,
+      daylight: this.dayNight.daylight
+    });
+    const initialEntities = this.entities.getSnapshots();
+    this.entityRenderer.sync(initialEntities, 0, 0);
+    this.entityInteraction.update(initialEntities);
   }
 
   private bindWindowEvents(): void {
@@ -99,6 +119,34 @@ export class Game {
     });
   }
 
+  private handleEntityEvent(event: EntityEvent): void {
+    switch (event.type) {
+      case 'memory.touched':
+        this.ui.showMessage(`The stone remembers this touch. Memory count: ${String(event.data?.touches ?? 1)}.`, 3.2);
+        break;
+      case 'memory.resonance':
+        this.ui.showMessage('The stored memories resonate. Somewhere nearby, a dormant spire answers.', 4.2);
+        break;
+      case 'resonance.pulse':
+        this.ui.showMessage('A resonance pulse crosses the clearing. The glow-bloom answers immediately.', 4.0);
+        break;
+      case 'bloom.awakened':
+        this.ui.showMessage('The glow-bloom wakes. A greeted whisperling may be drawn toward its light.', 3.5);
+        break;
+      case 'bloom.slept':
+        this.ui.showMessage('The glow-bloom dims again.', 2.4);
+        break;
+      case 'creature.greeted':
+        this.ui.showMessage('The whisperling remembers your greeting and becomes curious about nearby phenomena.', 3.8);
+        break;
+      case 'world.night-started':
+        this.ui.showMessage('Night settles in. Some entities obey different rules after dark.', 3.3);
+        break;
+      default:
+        break;
+    }
+  }
+
   start(): void {
     const frame = (): void => {
       const delta = Math.min(this.clock.getDelta(), 0.05);
@@ -106,9 +154,19 @@ export class Game {
 
       this.player.update(delta);
       this.world.chunkManager.update(this.player.position);
-      this.entities.update(time, delta);
       this.collectibles.update(time, delta);
       this.dayNight.update(delta);
+
+      this.entities.update({
+        time,
+        delta,
+        playerPosition: this.player.position,
+        daylight: this.dayNight.daylight
+      });
+      const entitySnapshots = this.entities.getSnapshots();
+      this.entityRenderer.sync(entitySnapshots, time, delta);
+      this.entityInteraction.update(entitySnapshots);
+
       this.atmosphere.update(time, delta);
       this.ui.update(delta);
 
