@@ -20,6 +20,8 @@ https://manxisuo.github.io/a-simple-sandbox-game/
 - deterministic infinite chunk streaming
 - seamless procedural height-field terrain with more varied, steeper hills
 - day/night cycle, atmosphere, clouds, fireflies, campfire lighting
+- in-game runtime settings with persistent browser storage
+- tunable time, terrain, camera, render distance, fog, and shadows
 - collectibles and simple environmental objects
 - general-purpose entity + interaction system
 - entity memory/state
@@ -44,7 +46,23 @@ The current entity experiment includes examples such as:
 | Shift | Sprint |
 | E | Interact |
 | V | Toggle first / third person view |
+| ⚙ | Open runtime settings |
 | Esc | Release pointer lock |
+
+## Runtime settings
+
+The gear button opens a right-side settings drawer. Opening it releases pointer lock so controls can be edited normally.
+
+Current settings include:
+
+- **Time** — enable/pause the cycle, allow/disallow full night, change day length, scrub time of day
+- **Terrain** — tune macro/hill/detail scale and amplitude plus spawn flattening/blending
+- **Camera** — choose first/third person, third-person distance, look sensitivity
+- **Visual** — chunk view distance, fog distance, shadows
+
+Settings are stored in `localStorage` and survive page refreshes. `Reset to defaults` restores the values derived from `GAME_CONFIG`.
+
+Terrain parameters are applied with **Apply & regenerate terrain**. V1 intentionally persists the new terrain settings and reloads the world so terrain-anchored content, entities, collectibles, player placement, and streamed chunks are rebuilt consistently from the new parameters.
 
 ## Development
 
@@ -109,10 +127,13 @@ The first concrete version of this separation already exists for entities, and t
 src/core/entities/                  # renderer-independent entity simulation
 src/rendering/three/                # Three.js presentation, including player avatar
 src/input/                          # browser-specific interaction/input
-src/player/CameraController.ts      # first/third-person camera behavior outside PlayerController
+src/camera/CameraController.ts      # first/third-person camera behavior outside PlayerController
+src/settings/RuntimeSettings.ts     # mutable runtime preferences derived from static defaults
 ```
 
 The intended invariant is that code under `src/core/` does not import `three`, DOM APIs, rendering objects, or UI objects.
+
+`GAME_CONFIG` remains the source of defaults. Runtime tuning lives separately in `RuntimeSettings`; the settings UI does not turn the static config into a global mutable singleton.
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the architectural principles and intended layering.
 
@@ -197,6 +218,7 @@ The world model, entity IDs, event history, and serializable state being introdu
 7. **Let architecture follow real gameplay pressure.** Avoid building abstract frameworks before concrete mechanics need them.
 8. **Favor interactions between world elements.** A world becomes interesting when entities affect each other, not only when everything reacts to the player.
 9. **Keep deterministic generation separate from mutable history.** Seed-based terrain/world generation should remain reproducible; player/world changes should live in explicit mutable state.
+10. **Keep defaults separate from runtime tuning.** Static project defaults should remain stable while experiments live in explicit runtime settings.
 
 ## Roadmap
 

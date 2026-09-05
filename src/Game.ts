@@ -7,12 +7,20 @@ import { EntityInteractionController } from './input/EntityInteractionController
 import { PlayerController } from './player/PlayerController';
 import { ThreeEntityRenderer } from './rendering/three/ThreeEntityRenderer';
 import { ThreePlayerAvatar } from './rendering/three/ThreePlayerAvatar';
+import {
+  createRuntimeWorldConfig,
+  loadRuntimeSettings,
+  resetRuntimeSettings,
+  saveRuntimeSettings,
+  type RuntimeSettings
+} from './settings/RuntimeSettings';
 import { createWorld } from './world/createWorld';
 import { CollectibleSystem } from './systems/CollectibleSystem';
 import { AtmosphereSystem } from './systems/AtmosphereSystem';
 import { DayNightSystem } from './systems/DayNightSystem';
+import { createSettingsPanel } from './ui/createSettingsPanel';
 import { createUI } from './ui/createUI';
-import type { UIController, WorldRuntime } from './types';
+import type { UIController, WorldConfig, WorldRuntime } from './types';
 
 export class Game {
   private readonly app: HTMLElement;
@@ -23,6 +31,7 @@ export class Game {
   private readonly cameraController: CameraController;
   private readonly ui: UIController;
   private readonly world: WorldRuntime;
+  private readonly worldConfig: WorldConfig;
   private readonly player: PlayerController;
   private readonly playerAvatar: ThreePlayerAvatar;
   private readonly entities: EntitySystem;
@@ -31,14 +40,17 @@ export class Game {
   private readonly collectibles: CollectibleSystem;
   private readonly atmosphere: AtmosphereSystem;
   private readonly dayNight: DayNightSystem;
+  private settings: RuntimeSettings;
 
   constructor(app: HTMLElement) {
     this.app = app;
+    this.settings = loadRuntimeSettings();
+    this.worldConfig = createRuntimeWorldConfig(this.settings);
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, GAME_CONFIG.renderer.maxPixelRatio));
     this.renderer.setSize(window.innerWidth, window.innerHeight);
-    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.enabled = this.settings.visual.shadows;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -47,11 +59,11 @@ export class Game {
 
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x78bdff);
-    this.scene.fog = new THREE.Fog(0x78bdff, GAME_CONFIG.world.fogNear, GAME_CONFIG.world.fogFar);
+    this.scene.fog = new THREE.Fog(0x78bdff, this.worldConfig.fogNear, this.worldConfig.fogFar);
 
     this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 240);
     this.ui = createUI(this.renderer);
-    this.world = createWorld(this.scene, GAME_CONFIG.world);
+    this.world = createWorld(this.scene, this.worldConfig);
 
     this.player = new PlayerController({
       colliders: this.world.colliders,
@@ -60,14 +72,20 @@ export class Game {
     });
 
     this.playerAvatar = new ThreePlayerAvatar(this.scene, this.player, GAME_CONFIG.player);
+    this.playerAvatar.setVisible(this.settings.camera.mode === 'third-person');
     this.cameraController = new CameraController({
       camera: this.camera,
       renderer: this.renderer,
       player: this.player,
       config: GAME_CONFIG.player,
+      initialMode: this.settings.camera.mode,
+      thirdPersonDistance: this.settings.camera.thirdPersonDistance,
+      lookSensitivity: this.settings.camera.lookSensitivity,
       onModeChanged: mode => {
         const thirdPerson = mode === 'third-person';
         this.playerAvatar.setVisible(thirdPerson);
+        this.settings.camera.mode = mode;
+        saveRuntimeSettings(this.settings);
         this.ui.showMessage(thirdPerson ? 'Third-person view' : 'First-person view', 1.4);
       }
     });
@@ -111,7 +129,47 @@ export class Game {
       ui: this.ui,
       collectibles: this.collectibles,
       atmosphere: this.atmosphere,
-      config: GAME_CONFIG.dayNight
+      config: {
+        cycleSeconds: this.settings.time.cycleSeconds,
+        initialProgress: this.settings.time.timeOfDay
+      }
+    });
+    this.applyTimeSettings();
+    this.dayNight.setCelestialVisibility(this.settings.visual.showSun, this.settings.visual.showMoon);
+
+    createSettingsPanel({
+      settings: this.settings,
+      onTimeChanged: settings => {
+        this.settings = settings;
+        this.applyTimeSettings();
+        saveRuntimeSettings(this.settings);
+      },
+      onCameraChanged: settings => {
+        this.settings = settings;
+        this.cameraController.setThirdPersonDistance(settings.camera.thirdPersonDistance);
+        this.cameraController.setLookSensitivity(settings.camera.lookSensitivity);
+        this.cameraController.setMode(settings.camera.mode);
+        saveRuntimeSettings(this.settings);
+      },
+      onVisualChanged: settings => {
+        this.settings = settings;
+        this.renderer.shadowMap.enabled = settings.visual.shadows;
+        if (this.scene.fog instanceof THREE.Fog) this.scene.fog.far = settings.visual.fogFar;
+        this.worldConfig.fogFar = settings.visual.fogFar;
+        this.world.chunkManager.setViewDistance(settings.visual.viewDistance, this.player.position);
+        this.dayNight.setCelestialVisibility(settings.visual.showSun, settings.visual.showMoon);
+        saveRuntimeSettings(this.settings);
+      },
+      onApplyTerrain: settings => {
+        this.settings = settings;
+        saveRuntimeSettings(this.settings);
+        window.location.reload();
+      },
+      onReset: () => {
+        const defaults = resetRuntimeSettings();
+        window.location.reload();
+        return defaults;
+      }
     });
 
     this.bindWindowEvents();
@@ -125,6 +183,14 @@ export class Game {
     const initialEntities = this.entities.getSnapshots();
     this.entityRenderer.sync(initialEntities, 0, 0);
     this.entityInteraction.update(initialEntities);
+  }
+
+  private applyTimeSettings(): void {
+    this.dayNight.setCycleEnabled(this.settings.time.cycleEnabled);
+    this.dayNight.setAllowNight(this.settings.time.allowNight);
+    this.dayNight.setCycleSeconds(this.settings.time.cycleSeconds);
+    this.dayNight.setTimeOfDay(this.settings.time.timeOfDay);
+    this.dayNight.update(0);
   }
 
   private bindWindowEvents(): void {

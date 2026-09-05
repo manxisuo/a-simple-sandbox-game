@@ -54,6 +54,12 @@ export class ChunkManager {
     return true;
   }
 
+  setViewDistance(distance: number, position: THREE.Vector3): void {
+    this.config.viewDistance = Math.max(1, Math.round(distance));
+    this.currentChunk = { x: Number.NaN, z: Number.NaN };
+    this.update(position);
+  }
+
   private loadChunk(chunkX: number, chunkZ: number): void {
     const chunk = this.generator.generate(chunkX, chunkZ);
     this.activeChunks.set(chunk.key, chunk);

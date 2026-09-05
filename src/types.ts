@@ -91,6 +91,7 @@ export interface ChunkManagerView {
   currentChunk: ChunkCoordinate;
   readonly loadedChunkCount: number;
   update(position: THREE.Vector3): boolean;
+  setViewDistance(distance: number, position: THREE.Vector3): void;
   getHeight(worldX: number, worldZ: number): number;
   setDaylight(daylight: number): void;
 }

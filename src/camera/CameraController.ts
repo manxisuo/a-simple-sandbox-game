@@ -9,6 +9,9 @@ interface CameraControllerOptions {
   renderer: THREE.WebGLRenderer;
   player: PlayerController;
   config: PlayerConfig;
+  initialMode?: CameraMode;
+  thirdPersonDistance?: number;
+  lookSensitivity?: number;
   onModeChanged?: (mode: CameraMode) => void;
 }
 
@@ -21,15 +24,29 @@ export class CameraController {
 
   private yaw = 0;
   private pitch = 0;
-  private mode: CameraMode = 'first-person';
+  private mode: CameraMode;
+  private thirdPersonDistance: number;
+  private lookSensitivity: number;
   private readonly target = new THREE.Vector3();
   private readonly desiredPosition = new THREE.Vector3();
 
-  constructor({ camera, renderer, player, config, onModeChanged }: CameraControllerOptions) {
+  constructor({
+    camera,
+    renderer,
+    player,
+    config,
+    initialMode = 'first-person',
+    thirdPersonDistance = 5.4,
+    lookSensitivity = config.lookSensitivity,
+    onModeChanged
+  }: CameraControllerOptions) {
     this.camera = camera;
     this.renderer = renderer;
     this.player = player;
     this.config = config;
+    this.mode = initialMode;
+    this.thirdPersonDistance = thirdPersonDistance;
+    this.lookSensitivity = lookSensitivity;
     this.onModeChanged = onModeChanged;
 
     this.bindEvents();
@@ -40,12 +57,27 @@ export class CameraController {
     return this.mode;
   }
 
+  setMode(mode: CameraMode): void {
+    if (this.mode === mode) return;
+    this.mode = mode;
+    this.pitch = THREE.MathUtils.clamp(this.pitch, -0.65, 1.05);
+    this.onModeChanged?.(this.mode);
+  }
+
+  setThirdPersonDistance(distance: number): void {
+    this.thirdPersonDistance = THREE.MathUtils.clamp(distance, 2.5, 10);
+  }
+
+  setLookSensitivity(sensitivity: number): void {
+    this.lookSensitivity = THREE.MathUtils.clamp(sensitivity, 0.0005, 0.01);
+  }
+
   private bindEvents(): void {
     document.addEventListener('mousemove', event => {
       if (document.pointerLockElement !== this.renderer.domElement) return;
 
-      this.yaw -= event.movementX * this.config.lookSensitivity;
-      this.pitch -= event.movementY * this.config.lookSensitivity;
+      this.yaw -= event.movementX * this.lookSensitivity;
+      this.pitch -= event.movementY * this.lookSensitivity;
       const maxPitch = this.mode === 'first-person' ? Math.PI / 2 - 0.02 : 1.05;
       const minPitch = this.mode === 'first-person' ? -Math.PI / 2 + 0.02 : -0.65;
       this.pitch = THREE.MathUtils.clamp(this.pitch, minPitch, maxPitch);
@@ -54,9 +86,7 @@ export class CameraController {
 
     document.addEventListener('keydown', event => {
       if (event.code !== 'KeyV' || event.repeat) return;
-      this.mode = this.mode === 'first-person' ? 'third-person' : 'first-person';
-      this.pitch = THREE.MathUtils.clamp(this.pitch, -0.65, 1.05);
-      this.onModeChanged?.(this.mode);
+      this.setMode(this.mode === 'first-person' ? 'third-person' : 'first-person');
     });
   }
 
@@ -73,7 +103,7 @@ export class CameraController {
     this.target.copy(this.player.position);
     this.target.y -= this.config.height * 0.45;
 
-    const distance = 5.4;
+    const distance = this.thirdPersonDistance;
     const horizontalDistance = Math.cos(this.pitch) * distance;
     this.desiredPosition.set(
       this.target.x + Math.sin(this.yaw) * horizontalDistance,
