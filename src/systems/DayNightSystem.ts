@@ -23,10 +23,12 @@ export class DayNightSystem {
   readonly ui: UIController;
   readonly collectibles: CollectibleSystem;
   readonly atmosphere: AtmosphereSystem;
-  readonly config: DayNightConfig;
   daylight = 1;
 
   private elapsed: number;
+  private cycleSeconds: number;
+  private cycleEnabled = true;
+  private allowNight = true;
   private readonly daySky = new THREE.Color(0x78bdff);
   private readonly duskSky = new THREE.Color(0xe58a68);
   private readonly nightSky = new THREE.Color(0x071323);
@@ -42,7 +44,7 @@ export class DayNightSystem {
     this.ui = ui;
     this.collectibles = collectibles;
     this.atmosphere = atmosphere;
-    this.config = config;
+    this.cycleSeconds = config.cycleSeconds;
     this.elapsed = config.cycleSeconds * config.initialProgress;
 
     this.hemisphereLight = new THREE.HemisphereLight(0xcfeaff, 0x59733c, 1.7);
@@ -63,12 +65,35 @@ export class DayNightSystem {
     scene.add(this.moonLight);
   }
 
+  setCycleEnabled(enabled: boolean): void {
+    this.cycleEnabled = enabled;
+  }
+
+  setAllowNight(allowNight: boolean): void {
+    this.allowNight = allowNight;
+  }
+
+  setCycleSeconds(seconds: number): void {
+    const progress = this.getCycleProgress();
+    this.cycleSeconds = THREE.MathUtils.clamp(seconds, 10, 7200);
+    this.elapsed = progress * this.cycleSeconds;
+  }
+
+  setTimeOfDay(progress: number): void {
+    this.elapsed = THREE.MathUtils.euclideanModulo(progress, 1) * this.cycleSeconds;
+  }
+
+  getCycleProgress(): number {
+    return (this.elapsed % this.cycleSeconds) / this.cycleSeconds;
+  }
+
   update(delta: number): void {
-    this.elapsed += delta;
-    const cycle = (this.elapsed % this.config.cycleSeconds) / this.config.cycleSeconds;
+    if (this.cycleEnabled) this.elapsed += delta;
+    const cycle = this.getCycleProgress();
     const angle = cycle * Math.PI * 2 - Math.PI / 2;
     const sunHeight = Math.sin(angle);
-    this.daylight = THREE.MathUtils.smoothstep(sunHeight, -0.22, 0.35);
+    const rawDaylight = THREE.MathUtils.smoothstep(sunHeight, -0.22, 0.35);
+    this.daylight = this.allowNight ? rawDaylight : Math.max(rawDaylight, 0.58);
     const duskAmount = Math.max(0, 1 - Math.abs(sunHeight) / 0.34) * (1 - Math.abs(this.daylight - 0.5) * 1.2);
 
     const sky = this.nightSky.clone().lerp(this.daySky, this.daylight);
@@ -104,7 +129,7 @@ export class DayNightSystem {
       `<br>Crystals: <strong>${this.collectibles.collected}/${this.collectibles.total}</strong>` +
       `<br>Chunk: <strong>${chunk.x}, ${chunk.z}</strong> · loaded ${this.world.chunkManager.loadedChunkCount}` +
       `<br>Terrain elevation: <strong>${terrainY.toFixed(1)}m</strong>` +
-      '<br><span style="opacity:.72">Shift to sprint · E to interact · watch how entities affect each other</span>'
+      '<br><span style="opacity:.72">Shift to sprint · E to interact · V to switch view</span>'
     );
   }
 }
