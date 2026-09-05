@@ -198,6 +198,12 @@ export function createSettingsPanel(options: SettingsPanelOptions): SettingsPane
   addToggle(visual, 'visual.shadows', 'Shadows', settings.visual.shadows, value => {
     settings.visual.shadows = value; options.onVisualChanged(settings);
   });
+  addToggle(visual, 'visual.showSun', 'Show sun', settings.visual.showSun, value => {
+    settings.visual.showSun = value; options.onVisualChanged(settings);
+  });
+  addToggle(visual, 'visual.showMoon', 'Show moon', settings.visual.showMoon, value => {
+    settings.visual.showMoon = value; options.onVisualChanged(settings);
+  });
 
   const reset = element('button', {
     width: '100%', border: '1px solid rgba(255,255,255,.2)', borderRadius: '9px', padding: '10px',
