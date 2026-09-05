@@ -50,15 +50,6 @@ export class EntitySystem {
     }));
   }
 
-  realignToTerrain(): void {
-    for (const entity of this.entities.values()) {
-      const offset = entity.id === 'whisperling-origin' ? 0.85 : 0;
-      entity.position.y = this.getGroundHeight(entity.position.x, entity.position.z) + offset;
-      if (entity.home) entity.home.y = this.getGroundHeight(entity.home.x, entity.home.z) + offset;
-      if (entity.target) entity.target.y = this.getGroundHeight(entity.target.x, entity.target.z) + offset;
-    }
-  }
-
   interact(id: EntityId, time: number): void {
     const entity = this.entities.get(id);
     if (!entity) return;
