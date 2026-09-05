@@ -24,6 +24,12 @@ export interface RuntimeSettings {
     showSun: boolean;
     showMoon: boolean;
   };
+  audio: {
+    muted: boolean;
+    masterVolume: number;
+    ambientVolume: number;
+    effectsVolume: number;
+  };
 }
 
 const STORAGE_KEY = 'a-simple-sandbox-game.settings.v1';
@@ -48,6 +54,12 @@ export const DEFAULT_RUNTIME_SETTINGS: RuntimeSettings = {
     shadows: true,
     showSun: true,
     showMoon: true
+  },
+  audio: {
+    muted: false,
+    masterVolume: 0.72,
+    ambientVolume: 0.5,
+    effectsVolume: 0.68
   }
 };
 
@@ -57,7 +69,8 @@ function mergeSettings(saved: Partial<RuntimeSettings> | null): RuntimeSettings 
     time: { ...DEFAULT_RUNTIME_SETTINGS.time, ...(saved?.time ?? {}) },
     terrain: { ...DEFAULT_RUNTIME_SETTINGS.terrain, ...(saved?.terrain ?? {}) },
     camera: { ...DEFAULT_RUNTIME_SETTINGS.camera, ...(saved?.camera ?? {}) },
-    visual: { ...DEFAULT_RUNTIME_SETTINGS.visual, ...(saved?.visual ?? {}) }
+    visual: { ...DEFAULT_RUNTIME_SETTINGS.visual, ...(saved?.visual ?? {}) },
+    audio: { ...DEFAULT_RUNTIME_SETTINGS.audio, ...(saved?.audio ?? {}) }
   };
 }
 
