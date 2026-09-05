@@ -19,8 +19,10 @@ export class ThreeEchoFieldRenderer {
   });
   private readonly shards: THREE.Mesh[] = [];
   private readonly baseOffsets: Array<{ x: number; y: number; z: number; phase: number }> = [];
-  private readonly anomalyFog = new THREE.Color(0x5f9fb8);
-  private readonly anomalySky = new THREE.Color(0x6aa9bd);
+  private readonly anomalyFog = new THREE.Color(0x467f99);
+  private readonly anomalySky = new THREE.Color(0x527f98);
+  private environmentMix = 0;
+  private lastUpdateTime = 0;
 
   constructor(scene: THREE.Scene) {
     this.scene = scene;
@@ -70,8 +72,12 @@ export class ThreeEchoFieldRenderer {
   }
 
   update(snapshot: EntitySnapshot | undefined, time: number): void {
+    const delta = Math.min(0.05, Math.max(0, time - this.lastUpdateTime));
+    this.lastUpdateTime = time;
+
     if (!snapshot) {
       this.root.visible = false;
+      this.environmentMix += (0 - this.environmentMix) * Math.min(1, delta * 3.2);
       return;
     }
 
@@ -97,10 +103,17 @@ export class ThreeEchoFieldRenderer {
       shard.rotation.y = time * (0.36 + i * 0.013);
     }
 
-    if (inside) {
-      const amount = Math.min(0.34, 0.17 + (intensity - 1) * 0.12);
-      if (this.scene.fog instanceof THREE.Fog) this.scene.fog.color.lerp(this.anomalyFog, amount);
-      if (this.scene.background instanceof THREE.Color) this.scene.background.lerp(this.anomalySky, amount * 0.45);
+    // The day/night system establishes the normal sky/fog earlier in the frame. Blend a stronger,
+    // cooler anomaly atmosphere over that baseline while inside, but ease it in/out so crossing the
+    // field boundary feels like entering different air rather than toggling a full-screen filter.
+    const targetMix = inside ? (amplified ? 1 : 0.82) : 0;
+    this.environmentMix += (targetMix - this.environmentMix) * Math.min(1, delta * 2.4);
+
+    if (this.environmentMix > 0.001) {
+      const fogAmount = 0.52 * this.environmentMix;
+      const skyAmount = 0.28 * this.environmentMix;
+      if (this.scene.fog instanceof THREE.Fog) this.scene.fog.color.lerp(this.anomalyFog, fogAmount);
+      if (this.scene.background instanceof THREE.Color) this.scene.background.lerp(this.anomalySky, skyAmount);
     }
   }
 }
