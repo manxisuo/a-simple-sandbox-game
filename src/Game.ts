@@ -1,10 +1,12 @@
 import * as THREE from 'three';
+import { CameraController } from './camera/CameraController';
 import { GAME_CONFIG } from './config';
 import { EntitySystem } from './core/entities/EntitySystem';
 import type { EntityEvent } from './core/entities/types';
 import { EntityInteractionController } from './input/EntityInteractionController';
 import { PlayerController } from './player/PlayerController';
 import { ThreeEntityRenderer } from './rendering/three/ThreeEntityRenderer';
+import { ThreePlayerAvatar } from './rendering/three/ThreePlayerAvatar';
 import { createWorld } from './world/createWorld';
 import { CollectibleSystem } from './systems/CollectibleSystem';
 import { AtmosphereSystem } from './systems/AtmosphereSystem';
@@ -18,9 +20,11 @@ export class Game {
   private readonly renderer: THREE.WebGLRenderer;
   private readonly scene: THREE.Scene;
   private readonly camera: THREE.PerspectiveCamera;
+  private readonly cameraController: CameraController;
   private readonly ui: UIController;
   private readonly world: WorldRuntime;
   private readonly player: PlayerController;
+  private readonly playerAvatar: ThreePlayerAvatar;
   private readonly entities: EntitySystem;
   private readonly entityRenderer: ThreeEntityRenderer;
   private readonly entityInteraction: EntityInteractionController;
@@ -50,12 +54,24 @@ export class Game {
     this.world = createWorld(this.scene, GAME_CONFIG.world);
 
     this.player = new PlayerController({
-      camera: this.camera,
-      renderer: this.renderer,
       colliders: this.world.colliders,
       getGroundHeight: (x, z) => this.world.getHeight(x, z),
       config: GAME_CONFIG.player
     });
+
+    this.playerAvatar = new ThreePlayerAvatar(this.scene, this.player, GAME_CONFIG.player);
+    this.cameraController = new CameraController({
+      camera: this.camera,
+      renderer: this.renderer,
+      player: this.player,
+      config: GAME_CONFIG.player,
+      onModeChanged: mode => {
+        const thirdPerson = mode === 'third-person';
+        this.playerAvatar.setVisible(thirdPerson);
+        this.ui.showMessage(thirdPerson ? 'Third-person view' : 'First-person view', 1.4);
+      }
+    });
+    this.cameraController.update(0);
 
     this.entities = new EntitySystem({
       rand: this.world.rand,
@@ -153,6 +169,8 @@ export class Game {
       const time = this.clock.elapsedTime;
 
       this.player.update(delta);
+      this.playerAvatar.update(delta);
+      this.cameraController.update(delta);
       this.world.chunkManager.update(this.player.position);
       this.collectibles.update(time, delta);
       this.dayNight.update(delta);
