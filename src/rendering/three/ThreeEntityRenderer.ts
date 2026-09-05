@@ -144,12 +144,22 @@ export class ThreeEntityRenderer {
       root,
       sync: (snapshot, time, delta) => {
         this.syncTransform(root, snapshot);
+
+        // The companion model is authored facing local -Z while entity rotation uses +Z as forward.
+        // Rotate only the presentation by 180° so semantic movement/facing stays renderer-independent.
+        root.rotation.y += Math.PI;
+
+        // Companion semantic Y is a body-height anchor. The mesh itself is authored from a ground-level
+        // local origin, so compensate here to put the feet on the sampled terrain instead of hovering.
+        root.position.y -= 0.46;
+
         const activity = String(snapshot.state.activity ?? 'wandering');
         const mood = String(snapshot.state.mood ?? 'content');
         const moving = !['resting', 'sniffing'].includes(activity);
         const bobSpeed = activity === 'bounding' ? 9 : activity === 'following' ? 6.5 : 4.2;
-        const bobAmount = activity === 'bounding' ? 0.1 : moving ? 0.045 : 0.018;
-        root.position.y += Math.sin(time * bobSpeed) * bobAmount;
+        const bobAmount = activity === 'bounding' ? 0.1 : moving ? 0.045 : 0.012;
+        // Keep locomotion bounce above the ground baseline so feet do not oscillate through the terrain.
+        root.position.y += (Math.sin(time * bobSpeed) + 1) * 0.5 * bobAmount;
 
         const wagSpeed = mood === 'happy' ? 11 : activity === 'bounding' ? 8 : 4.5;
         const wagAmount = mood === 'happy' ? 0.58 : 0.34;
