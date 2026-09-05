@@ -1,6 +1,7 @@
 {
   "scripts": {
     "dev": "vite",
+    "typecheck": "npx --yes -p typescript@7.0.2 tsc --noEmit",
     "build": "vite build",
     "preview": "vite preview"
   },
