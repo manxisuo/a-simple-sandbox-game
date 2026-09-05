@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { DayNightConfig, UIController, WorldRuntime } from '../types';
 import type { PlayerController } from '../player/PlayerController';
+import { CelestialRenderer } from '../rendering/three/CelestialRenderer';
 import type { CollectibleSystem } from './CollectibleSystem';
 import type { AtmosphereSystem } from './AtmosphereSystem';
 
@@ -35,6 +36,7 @@ export class DayNightSystem {
   private readonly hemisphereLight: THREE.HemisphereLight;
   private readonly sunLight: THREE.DirectionalLight;
   private readonly moonLight: THREE.DirectionalLight;
+  private readonly celestialRenderer: CelestialRenderer;
 
   constructor({ scene, renderer, world, player, ui, collectibles, atmosphere, config }: DayNightSystemOptions) {
     this.scene = scene;
@@ -63,6 +65,8 @@ export class DayNightSystem {
 
     this.moonLight = new THREE.DirectionalLight(0x8fb7ff, 0);
     scene.add(this.moonLight);
+
+    this.celestialRenderer = new CelestialRenderer({ scene });
   }
 
   setCycleEnabled(enabled: boolean): void {
@@ -81,6 +85,10 @@ export class DayNightSystem {
 
   setTimeOfDay(progress: number): void {
     this.elapsed = THREE.MathUtils.euclideanModulo(progress, 1) * this.cycleSeconds;
+  }
+
+  setCelestialVisibility(showSun: boolean, showMoon: boolean): void {
+    this.celestialRenderer.setVisibility(showSun, showMoon);
   }
 
   getCycleProgress(): number {
@@ -104,12 +112,24 @@ export class DayNightSystem {
     const px = this.player.position.x;
     const pz = this.player.position.z;
     const terrainY = this.world.getHeight(px, pz);
-    this.sunLight.position.set(px + Math.cos(angle) * 48, terrainY + Math.max(-8, sunHeight * 48), pz + Math.sin(angle) * 38);
+
+    // World direction convention: +X = east, -X = west. The sun rises in the east at 06:00,
+    // reaches its highest point around noon, and sets in the west around 18:00.
+    const orbitRadius = 72;
+    const sunOffsetX = Math.cos(angle) * orbitRadius;
+    const sunOffsetY = Math.sin(angle) * orbitRadius;
+    const sunOffsetZ = Math.sin(angle * 0.45) * 9;
+    const celestialCenterY = terrainY + 5;
+
+    this.celestialRenderer.update(px, celestialCenterY, pz, sunOffsetX, sunOffsetY, sunOffsetZ);
+
+    this.sunLight.position.set(px + sunOffsetX, celestialCenterY + sunOffsetY, pz + sunOffsetZ);
     this.sunLight.target.position.set(px, terrainY, pz);
     this.sunLight.intensity = 0.12 + this.daylight * 2.25;
     this.sunLight.color.set(this.daylight < 0.45 ? 0xff9c72 : 0xffffff);
 
-    this.moonLight.position.set(px - 24, terrainY + 36, pz - 16);
+    this.moonLight.position.set(px - sunOffsetX, celestialCenterY - sunOffsetY, pz - sunOffsetZ);
+    this.moonLight.target.position.set(px, terrainY, pz);
     this.hemisphereLight.intensity = 0.18 + this.daylight * 1.55;
     this.moonLight.intensity = (1 - this.daylight) * 0.7;
 
