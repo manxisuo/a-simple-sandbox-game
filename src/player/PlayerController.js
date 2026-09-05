@@ -60,10 +60,6 @@ export class PlayerController {
 
     this.position[axis] += amount;
 
-    if (axis === 'x' || axis === 'z') {
-      this.position[axis] = THREE.MathUtils.clamp(this.position[axis], -this.config.worldLimit, this.config.worldLimit);
-    }
-
     if (axis === 'y') {
       if (this.position.y < this.config.height) {
         this.position.y = this.config.height;

@@ -1,9 +1,11 @@
 export const GAME_CONFIG = {
   world: {
-    size: 180,
-    limit: 88,
-    fogNear: 38,
-    fogFar: 135
+    seed: 32648517,
+    chunkSize: 32,
+    viewDistance: 3,
+    objectsPerChunk: 7,
+    fogNear: 42,
+    fogFar: 105
   },
   player: {
     height: 1.7,

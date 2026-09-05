@@ -1,8 +1,9 @@
 import * as THREE from 'three';
 
 export class AtmosphereSystem {
-  constructor({ scene, world, rand }) {
+  constructor({ scene, world, player, rand }) {
     this.world = world;
+    this.player = player;
     this.fireflyCount = 70;
     this.fireflyPhases = [];
 
@@ -26,7 +27,8 @@ export class AtmosphereSystem {
       depthWrite: false
     });
 
-    scene.add(new THREE.Points(geometry, this.fireflyMaterial));
+    this.fireflies = new THREE.Points(geometry, this.fireflyMaterial);
+    scene.add(this.fireflies);
   }
 
   setNightAmount(amount) {
@@ -34,6 +36,12 @@ export class AtmosphereSystem {
   }
 
   update(time, delta) {
+    // Atmospheric effects are local to the observer rather than tied to world origin.
+    this.world.clouds.position.x = this.player.position.x;
+    this.world.clouds.position.z = this.player.position.z;
+    this.fireflies.position.x = this.player.position.x;
+    this.fireflies.position.z = this.player.position.z;
+
     for (const cloud of this.world.clouds.children) {
       cloud.position.x += cloud.userData.speed * delta;
       if (cloud.position.x > 82) cloud.position.x = -82;
