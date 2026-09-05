@@ -6,24 +6,26 @@ export function createWorld(scene, config) {
   const rand = createSeededRandom(config.seed ^ 0x51f15e);
 
   const resources = {
-    groundGeometry: new THREE.PlaneGeometry(config.chunkSize, config.chunkSize),
     boxGeometry: new THREE.BoxGeometry(1, 1, 1),
     trunkGeometry: new THREE.CylinderGeometry(1, 1, 1, 10),
     crownGeometry: new THREE.SphereGeometry(1, 18, 14),
     rockGeometry: new THREE.DodecahedronGeometry(1, 0),
-    groundMaterial: new THREE.MeshStandardMaterial({ color: 0x35a853, roughness: 0.86 }),
+    groundMaterial: new THREE.MeshStandardMaterial({ color: 0x35a853, roughness: 0.9 }),
     boxMaterial: new THREE.MeshStandardMaterial({ color: 0x9a6a3a, roughness: 0.74 }),
     trunkMaterial: new THREE.MeshStandardMaterial({ color: 0x6b4226, roughness: 0.82 }),
     crownMaterial: new THREE.MeshStandardMaterial({ color: 0x19783a, roughness: 0.9 }),
-    rockMaterial: new THREE.MeshStandardMaterial({ color: 0x6d7677, roughness: 0.95 }),
-    gridOpacity: 0.32
+    rockMaterial: new THREE.MeshStandardMaterial({ color: 0x6d7677, roughness: 0.95 })
   };
 
   const chunkManager = new ChunkManager({ scene, config, resources });
   chunkManager.update(new THREE.Vector3(0, 0, 0));
 
-  // The campfire remains a unique landmark at the world origin.
+  // The campfire remains a unique landmark near world origin, on the terrain surface.
+  const campfireX = 5.5;
+  const campfireZ = -4.5;
+  const campfireY = chunkManager.getHeight(campfireX, campfireZ);
   const campfire = new THREE.Group();
+
   for (let i = 0; i < 7; i += 1) {
     const stone = new THREE.Mesh(resources.rockGeometry, resources.rockMaterial);
     const angle = (i / 7) * Math.PI * 2;
@@ -47,14 +49,13 @@ export function createWorld(scene, config) {
   const flame = new THREE.Mesh(new THREE.ConeGeometry(0.33, 1.05, 10), flameMaterial);
   flame.position.y = 0.72;
   campfire.add(flame);
-  campfire.position.set(5.5, 0, -4.5);
+  campfire.position.set(campfireX, campfireY, campfireZ);
   scene.add(campfire);
 
   const fireLight = new THREE.PointLight(0xff8a38, 2.6, 16, 2);
-  fireLight.position.set(5.5, 1.35, -4.5);
+  fireLight.position.set(campfireX, campfireY + 1.35, campfireZ);
   scene.add(fireLight);
 
-  // Clouds live in player-relative space so the sky keeps following an infinite world.
   const clouds = new THREE.Group();
   const cloudMaterial = new THREE.MeshStandardMaterial({
     color: 0xffffff,
@@ -86,6 +87,9 @@ export function createWorld(scene, config) {
     clouds,
     cloudMaterial,
     rand,
+    getHeight(worldX, worldZ) {
+      return chunkManager.getHeight(worldX, worldZ);
+    },
     setDaylight(daylight) {
       chunkManager.setDaylight(daylight);
     }
