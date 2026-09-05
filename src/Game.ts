@@ -135,6 +135,7 @@ export class Game {
       }
     });
     this.applyTimeSettings();
+    this.dayNight.setCelestialVisibility(this.settings.visual.showSun, this.settings.visual.showMoon);
 
     createSettingsPanel({
       settings: this.settings,
@@ -156,6 +157,7 @@ export class Game {
         if (this.scene.fog instanceof THREE.Fog) this.scene.fog.far = settings.visual.fogFar;
         this.worldConfig.fogFar = settings.visual.fogFar;
         this.world.chunkManager.setViewDistance(settings.visual.viewDistance, this.player.position);
+        this.dayNight.setCelestialVisibility(settings.visual.showSun, settings.visual.showMoon);
         saveRuntimeSettings(this.settings);
       },
       onApplyTerrain: settings => {
