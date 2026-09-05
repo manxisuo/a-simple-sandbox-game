@@ -64,7 +64,7 @@ export class DayNightSystem {
     scene.add(this.sunLight, this.sunLight.target);
 
     this.moonLight = new THREE.DirectionalLight(0x8fb7ff, 0);
-    scene.add(this.moonLight);
+    scene.add(this.moonLight, this.moonLight.target);
 
     this.celestialRenderer = new CelestialRenderer({ scene });
   }
@@ -118,7 +118,7 @@ export class DayNightSystem {
     const orbitRadius = 72;
     const sunOffsetX = Math.cos(angle) * orbitRadius;
     const sunOffsetY = Math.sin(angle) * orbitRadius;
-    const sunOffsetZ = Math.sin(angle * 0.45) * 9;
+    const sunOffsetZ = 0;
     const celestialCenterY = terrainY + 5;
 
     this.celestialRenderer.update(px, celestialCenterY, pz, sunOffsetX, sunOffsetY, sunOffsetZ);
