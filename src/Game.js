@@ -34,6 +34,7 @@ export class Game {
       camera: this.camera,
       renderer: this.renderer,
       colliders: this.world.colliders,
+      getGroundHeight: (x, z) => this.world.getHeight(x, z),
       config: GAME_CONFIG.player
     });
 
@@ -41,7 +42,8 @@ export class Game {
       scene: this.scene,
       player: this.player,
       ui: this.ui,
-      rand: this.world.rand
+      rand: this.world.rand,
+      getGroundHeight: (x, z) => this.world.getHeight(x, z)
     });
 
     this.atmosphere = new AtmosphereSystem({
