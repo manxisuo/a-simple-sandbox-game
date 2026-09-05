@@ -18,6 +18,7 @@ https://manxisuo.github.io/a-simple-sandbox-game/
 - switchable first-person / third-person camera
 - simple third-person player avatar
 - a persistent companion that stays near the player without using a rigid follow offset
+- companion world awareness: it can investigate semantic entities, react differently at night, keep distance from unsettling phenomena, and occasionally lead the player toward something interesting
 - deterministic infinite chunk streaming
 - seamless procedural height-field terrain with more varied, steeper hills
 - day/night cycle, atmosphere, clouds, fireflies, campfire lighting
@@ -33,11 +34,13 @@ https://manxisuo.github.io/a-simple-sandbox-game/
 
 The current entity experiment includes examples such as:
 
-- **Companion** — stays bonded to the player, wanders within a loose moving radius, catches up when separated, occasionally stops to sniff/rest, and can be petted
+- **Companion** — stays bonded to the player, wanders within a loose moving radius, catches up when separated, occasionally stops to sniff/rest, can be petted, and now reacts to nearby world entities and time-of-day state
 - **Memory Stone** — remembers repeated player interactions
 - **Glow Bloom** — responds to interaction, resonance, and the day/night cycle
 - **Whisperling** — wanders, flees, can become curious, and reacts to other entities
 - **Resonance Spire** — can be charged by another entity and emit events that affect the local world
+
+Companion behavior currently exposes semantic state such as `activity`, `mood`, `interest`, and `nighttimeComfort`. This is intentionally kept in the renderer-independent entity core so future memory or AI systems can understand *why* the companion is behaving a certain way rather than inferring it from rendered motion.
 
 ## Controls
 
@@ -137,6 +140,8 @@ src/i18n.ts                         # UI translation keys and language dictionar
 ```
 
 The intended invariant is that code under `src/core/` does not import `three`, DOM APIs, rendering objects, UI objects, or localized presentation strings.
+
+Localization is a presentation concern. Core entities expose semantic IDs/events/state; browser/UI adapters map those semantics to localized text. This keeps game logic independent from the currently selected language and preserves clean inputs for tests, persistence, and future AI context.
 
 `GAME_CONFIG` remains the source of defaults. Runtime tuning lives separately in `RuntimeSettings`; the settings UI does not turn the static config into a global mutable singleton.
 
