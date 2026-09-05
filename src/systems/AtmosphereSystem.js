@@ -36,11 +36,11 @@ export class AtmosphereSystem {
   }
 
   update(time, delta) {
-    // Atmospheric effects are local to the observer rather than tied to world origin.
-    this.world.clouds.position.x = this.player.position.x;
-    this.world.clouds.position.z = this.player.position.z;
-    this.fireflies.position.x = this.player.position.x;
-    this.fireflies.position.z = this.player.position.z;
+    const localGroundY = this.world.getHeight(this.player.position.x, this.player.position.z);
+
+    // Atmospheric effects remain observer-relative in the streamed world.
+    this.world.clouds.position.set(this.player.position.x, localGroundY, this.player.position.z);
+    this.fireflies.position.set(this.player.position.x, localGroundY, this.player.position.z);
 
     for (const cloud of this.world.clouds.children) {
       cloud.position.x += cloud.userData.speed * delta;
