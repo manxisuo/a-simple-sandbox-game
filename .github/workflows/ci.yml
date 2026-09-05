@@ -23,6 +23,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Install type-check dependencies
+        run: npm install --no-save typescript@7.0.2 @types/three@latest
+
       - name: Type Check
         run: npm run typecheck
 
