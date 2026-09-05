@@ -1,4 +1,5 @@
 import type * as THREE from 'three';
+import { t, type Locale } from '../i18n';
 import type { UIController } from '../types';
 
 const uiFont = 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
@@ -12,7 +13,7 @@ function createElement<K extends keyof HTMLElementTagNameMap>(
   return element;
 }
 
-export function createUI(renderer: THREE.WebGLRenderer): UIController {
+export function createUI(renderer: THREE.WebGLRenderer, locale: Locale): UIController {
   const overlay = createElement('div', {
     position: 'fixed', inset: '0', display: 'flex', flexDirection: 'column',
     alignItems: 'center', justifyContent: 'center', gap: '12px', color: 'white',
@@ -20,7 +21,7 @@ export function createUI(renderer: THREE.WebGLRenderer): UIController {
     textShadow: '0 2px 18px rgba(0,0,0,0.45)', background: 'rgba(10,20,34,0.34)',
     cursor: 'pointer', zIndex: '20'
   });
-  overlay.innerHTML = '<div>Click to explore</div><span>WASD move · Mouse look · Space jump · Shift sprint · E interact · V view · ESC release</span>';
+  overlay.innerHTML = `<div>${t(locale, 'ui.clickToExplore')}</div><span>${t(locale, 'ui.controls')}</span>`;
 
   const hint = overlay.querySelector<HTMLSpanElement>('span');
   if (hint) {
@@ -62,7 +63,7 @@ export function createUI(renderer: THREE.WebGLRenderer): UIController {
     background: 'rgba(10,20,34,0.36)', border: '1px solid rgba(255,255,255,0.28)', borderRadius: '8px',
     fontFamily: uiFont, fontSize: '12px', fontWeight: '650', pointerEvents: 'none', zIndex: '9'
   });
-  badge.textContent = 'Three.js + TypeScript · Sandbox';
+  badge.textContent = t(locale, 'ui.badge');
 
   document.body.append(overlay, hud, interaction, message, crosshair, badge);
 

@@ -1,0 +1,146 @@
+export type Locale = 'zh-CN' | 'en';
+
+const en = {
+  'ui.clickToExplore': 'Click to explore',
+  'ui.controls': 'WASD move · Mouse look · Space jump · Shift sprint · E interact · V view · ESC release',
+  'ui.badge': 'Three.js + TypeScript · Sandbox',
+  'settings.title': 'Settings',
+  'settings.general': 'General',
+  'settings.language': 'Language',
+  'settings.language.zh': '中文',
+  'settings.language.en': 'English',
+  'settings.time': 'Time',
+  'settings.terrain': 'Terrain',
+  'settings.camera': 'Camera',
+  'settings.visual': 'Visual',
+  'settings.enableCycle': 'Enable day / night cycle',
+  'settings.allowNight': 'Allow full night',
+  'settings.dayLength': 'Day length (seconds)',
+  'settings.timeOfDay': 'Time of day (0–1)',
+  'settings.macroScale': 'Macro scale',
+  'settings.macroAmplitude': 'Macro amplitude',
+  'settings.hillScale': 'Hill scale',
+  'settings.hillAmplitude': 'Hill amplitude',
+  'settings.detailScale': 'Detail scale',
+  'settings.detailAmplitude': 'Detail amplitude',
+  'settings.spawnFlatRadius': 'Spawn flat radius',
+  'settings.spawnBlendRadius': 'Spawn blend radius',
+  'settings.applyTerrain': 'Apply & regenerate terrain',
+  'settings.viewMode': 'View mode',
+  'settings.firstPerson': 'First person',
+  'settings.thirdPerson': 'Third person',
+  'settings.thirdPersonDistance': 'Third-person distance',
+  'settings.lookSensitivity': 'Look sensitivity',
+  'settings.viewDistance': 'Chunk view distance',
+  'settings.fogDistance': 'Fog distance',
+  'settings.shadows': 'Shadows',
+  'settings.showSun': 'Show sun',
+  'settings.showMoon': 'Show moon',
+  'settings.reset': 'Reset to defaults',
+  'hud.day': 'Day',
+  'hud.twilight': 'Twilight',
+  'hud.night': 'Night',
+  'hud.crystals': 'Crystals',
+  'hud.chunk': 'Chunk',
+  'hud.loaded': 'loaded',
+  'hud.elevation': 'Terrain elevation',
+  'hud.hint': 'Shift to sprint · E to interact · V to switch view',
+  'camera.first': 'First-person view',
+  'camera.third': 'Third-person view',
+  'interaction.companion': 'pet your companion',
+  'interaction.memoryStone': 'touch the memory stone',
+  'interaction.glowBloom': 'touch the glow-bloom',
+  'interaction.whisperling': 'greet the whisperling',
+  'interaction.spire': 'send a resonance pulse',
+  'message.companionPetted': 'Your companion leans into your hand. Bond: {affection}.',
+  'message.memoryTouched': 'The stone remembers this touch. Memory count: {touches}.',
+  'message.memoryResonance': 'The stored memories resonate. Somewhere nearby, a dormant spire answers.',
+  'message.resonancePulse': 'A resonance pulse crosses the clearing. The glow-bloom answers immediately.',
+  'message.bloomAwakened': 'The glow-bloom wakes. A greeted whisperling may be drawn toward its light.',
+  'message.bloomSlept': 'The glow-bloom dims again.',
+  'message.creatureGreeted': 'The whisperling remembers your greeting and becomes curious about nearby phenomena.',
+  'message.nightStarted': 'Night settles in. Some entities obey different rules after dark.'
+} as const;
+
+export type TranslationKey = keyof typeof en;
+
+const zh: Record<TranslationKey, string> = {
+  'ui.clickToExplore': '点击开始探索',
+  'ui.controls': 'WASD 移动 · 鼠标观察 · 空格跳跃 · Shift 冲刺 · E 互动 · V 切换视角 · ESC 释放鼠标',
+  'ui.badge': 'Three.js + TypeScript · 沙盒实验',
+  'settings.title': '设置',
+  'settings.general': '通用',
+  'settings.language': '界面语言',
+  'settings.language.zh': '中文',
+  'settings.language.en': 'English',
+  'settings.time': '时间',
+  'settings.terrain': '地形',
+  'settings.camera': '镜头',
+  'settings.visual': '画面',
+  'settings.enableCycle': '启用昼夜循环',
+  'settings.allowNight': '允许完整黑夜',
+  'settings.dayLength': '一天时长（秒）',
+  'settings.timeOfDay': '当前时间（0–1）',
+  'settings.macroScale': '宏观地形尺度',
+  'settings.macroAmplitude': '宏观地形振幅',
+  'settings.hillScale': '丘陵尺度',
+  'settings.hillAmplitude': '丘陵振幅',
+  'settings.detailScale': '细节尺度',
+  'settings.detailAmplitude': '细节振幅',
+  'settings.spawnFlatRadius': '出生点平坦半径',
+  'settings.spawnBlendRadius': '出生点过渡半径',
+  'settings.applyTerrain': '应用并重新生成地形',
+  'settings.viewMode': '视角模式',
+  'settings.firstPerson': '第一人称',
+  'settings.thirdPerson': '第三人称',
+  'settings.thirdPersonDistance': '第三人称镜头距离',
+  'settings.lookSensitivity': '观察灵敏度',
+  'settings.viewDistance': '区块可视距离',
+  'settings.fogDistance': '雾距离',
+  'settings.shadows': '阴影',
+  'settings.showSun': '显示太阳',
+  'settings.showMoon': '显示月亮',
+  'settings.reset': '恢复默认设置',
+  'hud.day': '白昼',
+  'hud.twilight': '晨昏',
+  'hud.night': '黑夜',
+  'hud.crystals': '水晶',
+  'hud.chunk': '区块',
+  'hud.loaded': '已加载',
+  'hud.elevation': '地形海拔',
+  'hud.hint': 'Shift 冲刺 · E 互动 · V 切换视角',
+  'camera.first': '已切换到第一人称',
+  'camera.third': '已切换到第三人称',
+  'interaction.companion': '摸摸你的同伴',
+  'interaction.memoryStone': '触碰记忆石',
+  'interaction.glowBloom': '触碰荧光花',
+  'interaction.whisperling': '向低语灵打招呼',
+  'interaction.spire': '释放共鸣脉冲',
+  'message.companionPetted': '同伴亲昵地蹭了蹭你的手。羁绊：{affection}。',
+  'message.memoryTouched': '记忆石记住了这次触碰。记忆次数：{touches}。',
+  'message.memoryResonance': '积存的记忆开始共鸣。附近某处，一座沉睡的尖塔回应了它。',
+  'message.resonancePulse': '共鸣脉冲掠过空地，荧光花立刻作出了回应。',
+  'message.bloomAwakened': '荧光花苏醒了。与你熟悉的低语灵也许会被它的光吸引。',
+  'message.bloomSlept': '荧光花再次暗淡下来。',
+  'message.creatureGreeted': '低语灵记住了你的问候，并开始对附近的异常现象产生好奇。',
+  'message.nightStarted': '夜幕降临。有些存在在黑夜中遵循不同的规则。'
+};
+
+const dictionaries: Record<Locale, Record<TranslationKey, string>> = { en, 'zh-CN': zh };
+
+export function t(locale: Locale, key: TranslationKey, variables: Record<string, string | number> = {}): string {
+  let text = dictionaries[locale][key] ?? en[key];
+  for (const [name, value] of Object.entries(variables)) text = text.replaceAll(`{${name}}`, String(value));
+  return text;
+}
+
+export function interactionKey(entityId: string): TranslationKey | null {
+  switch (entityId) {
+    case 'companion-origin': return 'interaction.companion';
+    case 'memory-stone-origin': return 'interaction.memoryStone';
+    case 'glow-bloom-origin': return 'interaction.glowBloom';
+    case 'whisperling-origin': return 'interaction.whisperling';
+    case 'resonance-spire-origin': return 'interaction.spire';
+    default: return null;
+  }
+}

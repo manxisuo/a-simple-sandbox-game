@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { t, type Locale } from '../i18n';
 import type { DayNightConfig, UIController, WorldRuntime } from '../types';
 import type { PlayerController } from '../player/PlayerController';
 import { CelestialRenderer } from '../rendering/three/CelestialRenderer';
@@ -14,6 +15,7 @@ interface DayNightSystemOptions {
   collectibles: CollectibleSystem;
   atmosphere: AtmosphereSystem;
   config: DayNightConfig;
+  getLocale: () => Locale;
 }
 
 export class DayNightSystem {
@@ -30,6 +32,7 @@ export class DayNightSystem {
   private cycleSeconds: number;
   private cycleEnabled = true;
   private allowNight = true;
+  private readonly getLocale: () => Locale;
   private readonly daySky = new THREE.Color(0x78bdff);
   private readonly duskSky = new THREE.Color(0xe58a68);
   private readonly nightSky = new THREE.Color(0x071323);
@@ -38,7 +41,7 @@ export class DayNightSystem {
   private readonly moonLight: THREE.DirectionalLight;
   private readonly celestialRenderer: CelestialRenderer;
 
-  constructor({ scene, renderer, world, player, ui, collectibles, atmosphere, config }: DayNightSystemOptions) {
+  constructor({ scene, renderer, world, player, ui, collectibles, atmosphere, config, getLocale }: DayNightSystemOptions) {
     this.scene = scene;
     this.renderer = renderer;
     this.world = world;
@@ -46,6 +49,7 @@ export class DayNightSystem {
     this.ui = ui;
     this.collectibles = collectibles;
     this.atmosphere = atmosphere;
+    this.getLocale = getLocale;
     this.cycleSeconds = config.cycleSeconds;
     this.elapsed = config.cycleSeconds * config.initialProgress;
 
@@ -113,8 +117,6 @@ export class DayNightSystem {
     const pz = this.player.position.z;
     const terrainY = this.world.getHeight(px, pz);
 
-    // World direction convention: +X = east, -X = west. The sun rises in the east at 06:00,
-    // reaches its highest point around noon, and sets in the west around 18:00.
     const orbitRadius = 72;
     const sunOffsetX = Math.cos(angle) * orbitRadius;
     const sunOffsetY = Math.sin(angle) * orbitRadius;
@@ -141,15 +143,16 @@ export class DayNightSystem {
 
     const hours = Math.floor(cycle * 24);
     const minutes = Math.floor((cycle * 24 - hours) * 60);
-    const phase = this.daylight > 0.68 ? 'Day' : this.daylight > 0.22 ? 'Twilight' : 'Night';
+    const locale = this.getLocale();
+    const phase = this.daylight > 0.68 ? t(locale, 'hud.day') : this.daylight > 0.22 ? t(locale, 'hud.twilight') : t(locale, 'hud.night');
     const chunk = this.world.chunkManager.currentChunk;
 
     this.ui.setHud(
       `<strong>${phase}</strong> · ${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}` +
-      `<br>Crystals: <strong>${this.collectibles.collected}/${this.collectibles.total}</strong>` +
-      `<br>Chunk: <strong>${chunk.x}, ${chunk.z}</strong> · loaded ${this.world.chunkManager.loadedChunkCount}` +
-      `<br>Terrain elevation: <strong>${terrainY.toFixed(1)}m</strong>` +
-      '<br><span style="opacity:.72">Shift to sprint · E to interact · V to switch view</span>'
+      `<br>${t(locale, 'hud.crystals')}: <strong>${this.collectibles.collected}/${this.collectibles.total}</strong>` +
+      `<br>${t(locale, 'hud.chunk')}: <strong>${chunk.x}, ${chunk.z}</strong> · ${t(locale, 'hud.loaded')} ${this.world.chunkManager.loadedChunkCount}` +
+      `<br>${t(locale, 'hud.elevation')}: <strong>${terrainY.toFixed(1)}m</strong>` +
+      `<br><span style="opacity:.72">${t(locale, 'hud.hint')}</span>`
     );
   }
 }

@@ -3,6 +3,7 @@ import { CameraController } from './camera/CameraController';
 import { GAME_CONFIG } from './config';
 import { EntitySystem } from './core/entities/EntitySystem';
 import type { EntityEvent } from './core/entities/types';
+import { t } from './i18n';
 import { EntityInteractionController } from './input/EntityInteractionController';
 import { PlayerController } from './player/PlayerController';
 import { ThreeEntityRenderer } from './rendering/three/ThreeEntityRenderer';
@@ -62,7 +63,7 @@ export class Game {
     this.scene.fog = new THREE.Fog(0x78bdff, this.worldConfig.fogNear, this.worldConfig.fogFar);
 
     this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 240);
-    this.ui = createUI(this.renderer);
+    this.ui = createUI(this.renderer, this.settings.language);
     this.world = createWorld(this.scene, this.worldConfig);
 
     this.player = new PlayerController({
@@ -86,7 +87,7 @@ export class Game {
         this.playerAvatar.setVisible(thirdPerson);
         this.settings.camera.mode = mode;
         saveRuntimeSettings(this.settings);
-        this.ui.showMessage(thirdPerson ? 'Third-person view' : 'First-person view', 1.4);
+        this.ui.showMessage(t(this.settings.language, thirdPerson ? 'camera.third' : 'camera.first'), 1.4);
       }
     });
     this.cameraController.update(0);
@@ -102,7 +103,8 @@ export class Game {
       entities: this.entities,
       renderer: this.entityRenderer,
       ui: this.ui,
-      getTime: () => this.clock.elapsedTime
+      getTime: () => this.clock.elapsedTime,
+      getLocale: () => this.settings.language
     });
     this.entities.onEvent(event => this.handleEntityEvent(event));
 
@@ -132,13 +134,19 @@ export class Game {
       config: {
         cycleSeconds: this.settings.time.cycleSeconds,
         initialProgress: this.settings.time.timeOfDay
-      }
+      },
+      getLocale: () => this.settings.language
     });
     this.applyTimeSettings();
     this.dayNight.setCelestialVisibility(this.settings.visual.showSun, this.settings.visual.showMoon);
 
     createSettingsPanel({
       settings: this.settings,
+      onLanguageChanged: settings => {
+        this.settings = settings;
+        saveRuntimeSettings(this.settings);
+        window.location.reload();
+      },
       onTimeChanged: settings => {
         this.settings = settings;
         this.applyTimeSettings();
@@ -202,30 +210,31 @@ export class Game {
   }
 
   private handleEntityEvent(event: EntityEvent): void {
+    const locale = this.settings.language;
     switch (event.type) {
       case 'companion.petted':
-        this.ui.showMessage(`Your companion leans into the attention. Bond: ${String(event.data?.affection ?? 1)}.`, 2.6);
+        this.ui.showMessage(t(locale, 'message.companionPetted', { affection: Number(event.data?.affection ?? 1) }), 2.6);
         break;
       case 'memory.touched':
-        this.ui.showMessage(`The stone remembers this touch. Memory count: ${String(event.data?.touches ?? 1)}.`, 3.2);
+        this.ui.showMessage(t(locale, 'message.memoryTouched', { touches: Number(event.data?.touches ?? 1) }), 3.2);
         break;
       case 'memory.resonance':
-        this.ui.showMessage('The stored memories resonate. Somewhere nearby, a dormant spire answers.', 4.2);
+        this.ui.showMessage(t(locale, 'message.memoryResonance'), 4.2);
         break;
       case 'resonance.pulse':
-        this.ui.showMessage('A resonance pulse crosses the clearing. The glow-bloom answers immediately.', 4.0);
+        this.ui.showMessage(t(locale, 'message.resonancePulse'), 4.0);
         break;
       case 'bloom.awakened':
-        this.ui.showMessage('The glow-bloom wakes. A greeted whisperling may be drawn toward its light.', 3.5);
+        this.ui.showMessage(t(locale, 'message.bloomAwakened'), 3.5);
         break;
       case 'bloom.slept':
-        this.ui.showMessage('The glow-bloom dims again.', 2.4);
+        this.ui.showMessage(t(locale, 'message.bloomSlept'), 2.4);
         break;
       case 'creature.greeted':
-        this.ui.showMessage('The whisperling remembers your greeting and becomes curious about nearby phenomena.', 3.8);
+        this.ui.showMessage(t(locale, 'message.creatureGreeted'), 3.8);
         break;
       case 'world.night-started':
-        this.ui.showMessage('Night settles in. Some entities obey different rules after dark.', 3.3);
+        this.ui.showMessage(t(locale, 'message.nightStarted'), 3.3);
         break;
       default:
         break;

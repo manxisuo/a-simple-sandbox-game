@@ -1,7 +1,9 @@
+import { t } from '../i18n';
 import type { RuntimeSettings } from '../settings/RuntimeSettings';
 
 interface SettingsPanelOptions {
   settings: RuntimeSettings;
+  onLanguageChanged(settings: RuntimeSettings): void;
   onTimeChanged(settings: RuntimeSettings): void;
   onCameraChanged(settings: RuntimeSettings): void;
   onVisualChanged(settings: RuntimeSettings): void;
@@ -23,6 +25,7 @@ function element<K extends keyof HTMLElementTagNameMap>(tag: K, styles: Partial<
 
 function cloneSettings(settings: RuntimeSettings): RuntimeSettings {
   return {
+    language: settings.language,
     time: { ...settings.time },
     terrain: { ...settings.terrain },
     camera: { ...settings.camera },
@@ -33,6 +36,7 @@ function cloneSettings(settings: RuntimeSettings): RuntimeSettings {
 export function createSettingsPanel(options: SettingsPanelOptions): SettingsPanelController {
   let settings = cloneSettings(options.settings);
   const controls = new Map<string, HTMLInputElement | HTMLSelectElement>();
+  const tr = <K extends Parameters<typeof t>[1]>(key: K): string => t(settings.language, key);
 
   const gear = element('button', {
     position: 'fixed', right: '16px', top: '16px', width: '42px', height: '42px', zIndex: '30',
@@ -40,7 +44,7 @@ export function createSettingsPanel(options: SettingsPanelOptions): SettingsPane
     color: 'white', fontSize: '20px', cursor: 'pointer', backdropFilter: 'blur(8px)'
   });
   gear.textContent = '⚙';
-  gear.title = 'Settings';
+  gear.title = tr('settings.title');
 
   const backdrop = element('div', {
     position: 'fixed', inset: '0', zIndex: '39', background: 'rgba(0,0,0,.22)', display: 'none'
@@ -56,7 +60,7 @@ export function createSettingsPanel(options: SettingsPanelOptions): SettingsPane
 
   const header = element('div', { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' });
   const title = element('div', { fontSize: '20px', fontWeight: '750' });
-  title.textContent = 'Settings';
+  title.textContent = tr('settings.title');
   const close = element('button', { border: '0', background: 'transparent', color: 'white', fontSize: '25px', cursor: 'pointer' });
   close.textContent = '×';
   header.append(title, close);
@@ -133,33 +137,51 @@ export function createSettingsPanel(options: SettingsPanelOptions): SettingsPane
     wrapper.append(line);
   };
 
-  const time = section('Time');
-  addToggle(time, 'time.cycleEnabled', 'Enable day / night cycle', settings.time.cycleEnabled, value => {
+  const general = section(tr('settings.general'));
+  const languageRow = row(general, tr('settings.language'));
+  const language = document.createElement('select');
+  for (const value of ['zh-CN', 'en'] as const) {
+    const option = document.createElement('option');
+    option.value = value;
+    option.textContent = value === 'zh-CN' ? tr('settings.language.zh') : tr('settings.language.en');
+    language.append(option);
+  }
+  language.value = settings.language;
+  Object.assign(language.style, { width: '100%', padding: '7px', borderRadius: '8px', color: 'white', background: '#14263a', border: '1px solid rgba(255,255,255,.18)' });
+  language.addEventListener('change', () => {
+    settings.language = language.value as RuntimeSettings['language'];
+    options.onLanguageChanged(settings);
+  });
+  controls.set('language', language);
+  languageRow.append(language);
+
+  const time = section(tr('settings.time'));
+  addToggle(time, 'time.cycleEnabled', tr('settings.enableCycle'), settings.time.cycleEnabled, value => {
     settings.time.cycleEnabled = value; options.onTimeChanged(settings);
   });
-  addToggle(time, 'time.allowNight', 'Allow full night', settings.time.allowNight, value => {
+  addToggle(time, 'time.allowNight', tr('settings.allowNight'), settings.time.allowNight, value => {
     settings.time.allowNight = value; options.onTimeChanged(settings);
   });
-  addRange(time, 'time.cycleSeconds', 'Day length (seconds)', settings.time.cycleSeconds, 30, 1800, 10, value => {
+  addRange(time, 'time.cycleSeconds', tr('settings.dayLength'), settings.time.cycleSeconds, 30, 1800, 10, value => {
     settings.time.cycleSeconds = value; options.onTimeChanged(settings);
   });
-  addRange(time, 'time.timeOfDay', 'Time of day (0–1)', settings.time.timeOfDay, 0, 1, 0.01, value => {
+  addRange(time, 'time.timeOfDay', tr('settings.timeOfDay'), settings.time.timeOfDay, 0, 1, 0.01, value => {
     settings.time.timeOfDay = value; options.onTimeChanged(settings);
   });
 
-  const terrain = section('Terrain');
-  const terrainFields: Array<[keyof RuntimeSettings['terrain'], string, number, number, number]> = [
-    ['macroScale', 'Macro scale', 0.001, 0.012, 0.0005],
-    ['macroAmplitude', 'Macro amplitude', 0, 18, 0.5],
-    ['hillScale', 'Hill scale', 0.004, 0.05, 0.001],
-    ['hillAmplitude', 'Hill amplitude', 0, 10, 0.25],
-    ['detailScale', 'Detail scale', 0.01, 0.12, 0.0025],
-    ['detailAmplitude', 'Detail amplitude', 0, 2.5, 0.05],
-    ['spawnFlatRadius', 'Spawn flat radius', 0, 30, 1],
-    ['spawnBlendRadius', 'Spawn blend radius', 5, 55, 1]
+  const terrain = section(tr('settings.terrain'));
+  const terrainFields: Array<[keyof RuntimeSettings['terrain'], Parameters<typeof t>[1], number, number, number]> = [
+    ['macroScale', 'settings.macroScale', 0.001, 0.012, 0.0005],
+    ['macroAmplitude', 'settings.macroAmplitude', 0, 18, 0.5],
+    ['hillScale', 'settings.hillScale', 0.004, 0.05, 0.001],
+    ['hillAmplitude', 'settings.hillAmplitude', 0, 10, 0.25],
+    ['detailScale', 'settings.detailScale', 0.01, 0.12, 0.0025],
+    ['detailAmplitude', 'settings.detailAmplitude', 0, 2.5, 0.05],
+    ['spawnFlatRadius', 'settings.spawnFlatRadius', 0, 30, 1],
+    ['spawnBlendRadius', 'settings.spawnBlendRadius', 5, 55, 1]
   ];
-  for (const [key, labelText, min, max, step] of terrainFields) {
-    addRange(terrain, `terrain.${String(key)}`, labelText, settings.terrain[key], min, max, step, value => {
+  for (const [key, labelKey, min, max, step] of terrainFields) {
+    addRange(terrain, `terrain.${String(key)}`, tr(labelKey), settings.terrain[key], min, max, step, value => {
       settings.terrain[key] = value;
     });
   }
@@ -167,41 +189,41 @@ export function createSettingsPanel(options: SettingsPanelOptions): SettingsPane
     width: '100%', border: '1px solid rgba(255,255,255,.2)', borderRadius: '9px', padding: '9px',
     color: 'white', background: 'rgba(79,137,104,.55)', cursor: 'pointer', fontWeight: '700'
   });
-  applyTerrain.textContent = 'Apply & regenerate terrain';
+  applyTerrain.textContent = tr('settings.applyTerrain');
   applyTerrain.addEventListener('click', () => options.onApplyTerrain(settings));
   terrain.append(applyTerrain);
 
-  const camera = section('Camera');
-  const modeRow = row(camera, 'View mode');
+  const camera = section(tr('settings.camera'));
+  const modeRow = row(camera, tr('settings.viewMode'));
   const mode = document.createElement('select');
   for (const value of ['first-person', 'third-person'] as const) {
-    const option = document.createElement('option'); option.value = value; option.textContent = value === 'first-person' ? 'First person' : 'Third person'; mode.append(option);
+    const option = document.createElement('option'); option.value = value; option.textContent = value === 'first-person' ? tr('settings.firstPerson') : tr('settings.thirdPerson'); mode.append(option);
   }
   mode.value = settings.camera.mode;
   Object.assign(mode.style, { width: '100%', padding: '7px', borderRadius: '8px', color: 'white', background: '#14263a', border: '1px solid rgba(255,255,255,.18)' });
   mode.addEventListener('change', () => { settings.camera.mode = mode.value as RuntimeSettings['camera']['mode']; options.onCameraChanged(settings); });
   controls.set('camera.mode', mode); modeRow.append(mode);
-  addRange(camera, 'camera.thirdPersonDistance', 'Third-person distance', settings.camera.thirdPersonDistance, 2.5, 10, 0.1, value => {
+  addRange(camera, 'camera.thirdPersonDistance', tr('settings.thirdPersonDistance'), settings.camera.thirdPersonDistance, 2.5, 10, 0.1, value => {
     settings.camera.thirdPersonDistance = value; options.onCameraChanged(settings);
   });
-  addRange(camera, 'camera.lookSensitivity', 'Look sensitivity', settings.camera.lookSensitivity, 0.0008, 0.005, 0.0001, value => {
+  addRange(camera, 'camera.lookSensitivity', tr('settings.lookSensitivity'), settings.camera.lookSensitivity, 0.0008, 0.005, 0.0001, value => {
     settings.camera.lookSensitivity = value; options.onCameraChanged(settings);
   });
 
-  const visual = section('Visual');
-  addRange(visual, 'visual.viewDistance', 'Chunk view distance', settings.visual.viewDistance, 1, 6, 1, value => {
+  const visual = section(tr('settings.visual'));
+  addRange(visual, 'visual.viewDistance', tr('settings.viewDistance'), settings.visual.viewDistance, 1, 6, 1, value => {
     settings.visual.viewDistance = Math.round(value); options.onVisualChanged(settings);
   });
-  addRange(visual, 'visual.fogFar', 'Fog distance', settings.visual.fogFar, 50, 200, 5, value => {
+  addRange(visual, 'visual.fogFar', tr('settings.fogDistance'), settings.visual.fogFar, 50, 200, 5, value => {
     settings.visual.fogFar = value; options.onVisualChanged(settings);
   });
-  addToggle(visual, 'visual.shadows', 'Shadows', settings.visual.shadows, value => {
+  addToggle(visual, 'visual.shadows', tr('settings.shadows'), settings.visual.shadows, value => {
     settings.visual.shadows = value; options.onVisualChanged(settings);
   });
-  addToggle(visual, 'visual.showSun', 'Show sun', settings.visual.showSun, value => {
+  addToggle(visual, 'visual.showSun', tr('settings.showSun'), settings.visual.showSun, value => {
     settings.visual.showSun = value; options.onVisualChanged(settings);
   });
-  addToggle(visual, 'visual.showMoon', 'Show moon', settings.visual.showMoon, value => {
+  addToggle(visual, 'visual.showMoon', tr('settings.showMoon'), settings.visual.showMoon, value => {
     settings.visual.showMoon = value; options.onVisualChanged(settings);
   });
 
@@ -209,7 +231,7 @@ export function createSettingsPanel(options: SettingsPanelOptions): SettingsPane
     width: '100%', border: '1px solid rgba(255,255,255,.2)', borderRadius: '9px', padding: '10px',
     color: 'white', background: 'rgba(255,255,255,.08)', cursor: 'pointer'
   });
-  reset.textContent = 'Reset to defaults';
+  reset.textContent = tr('settings.reset');
   reset.addEventListener('click', () => {
     settings = cloneSettings(options.onReset());
     refresh(settings);
@@ -220,6 +242,10 @@ export function createSettingsPanel(options: SettingsPanelOptions): SettingsPane
   const refresh = (next: RuntimeSettings): void => {
     settings = cloneSettings(next);
     for (const [key, control] of controls) {
+      if (key === 'language') {
+        control.value = settings.language;
+        continue;
+      }
       const [baseKey] = key.split(':');
       const [sectionKey, field] = baseKey.split('.') as [keyof RuntimeSettings, string];
       const group = settings[sectionKey] as unknown as Record<string, unknown>;

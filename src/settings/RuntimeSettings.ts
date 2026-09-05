@@ -1,8 +1,10 @@
 import { GAME_CONFIG } from '../config';
 import type { CameraMode } from '../camera/CameraController';
+import type { Locale } from '../i18n';
 import type { TerrainConfig, WorldConfig } from '../types';
 
 export interface RuntimeSettings {
+  language: Locale;
   time: {
     cycleEnabled: boolean;
     allowNight: boolean;
@@ -27,6 +29,7 @@ export interface RuntimeSettings {
 const STORAGE_KEY = 'a-simple-sandbox-game.settings.v1';
 
 export const DEFAULT_RUNTIME_SETTINGS: RuntimeSettings = {
+  language: 'zh-CN',
   time: {
     cycleEnabled: true,
     allowNight: true,
@@ -50,6 +53,7 @@ export const DEFAULT_RUNTIME_SETTINGS: RuntimeSettings = {
 
 function mergeSettings(saved: Partial<RuntimeSettings> | null): RuntimeSettings {
   return {
+    language: saved?.language === 'en' ? 'en' : DEFAULT_RUNTIME_SETTINGS.language,
     time: { ...DEFAULT_RUNTIME_SETTINGS.time, ...(saved?.time ?? {}) },
     terrain: { ...DEFAULT_RUNTIME_SETTINGS.terrain, ...(saved?.terrain ?? {}) },
     camera: { ...DEFAULT_RUNTIME_SETTINGS.camera, ...(saved?.camera ?? {}) },
