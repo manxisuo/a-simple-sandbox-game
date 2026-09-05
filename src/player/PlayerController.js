@@ -1,14 +1,15 @@
 import * as THREE from 'three';
 
 export class PlayerController {
-  constructor({ camera, renderer, colliders, config }) {
+  constructor({ camera, renderer, colliders, getGroundHeight, config }) {
     this.camera = camera;
     this.renderer = renderer;
     this.colliders = colliders;
+    this.getGroundHeight = getGroundHeight;
     this.config = config;
     this.keys = new Set();
 
-    this.position = new THREE.Vector3(0, config.height, 0);
+    this.position = new THREE.Vector3(0, getGroundHeight(0, 0) + config.height, 0);
     this.velocity = new THREE.Vector3();
     this.yaw = 0;
     this.pitch = 0;
@@ -61,8 +62,9 @@ export class PlayerController {
     this.position[axis] += amount;
 
     if (axis === 'y') {
-      if (this.position.y < this.config.height) {
-        this.position.y = this.config.height;
+      const groundLevel = this.getGroundHeight(this.position.x, this.position.z) + this.config.height;
+      if (this.position.y < groundLevel) {
+        this.position.y = groundLevel;
         this.velocity.y = 0;
         this.grounded = true;
         return;
