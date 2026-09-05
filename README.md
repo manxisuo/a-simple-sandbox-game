@@ -22,6 +22,7 @@ https://manxisuo.github.io/a-simple-sandbox-game/
 - seamless procedural height-field terrain with more varied, steeper hills
 - day/night cycle, atmosphere, clouds, fireflies, campfire lighting
 - in-game runtime settings with persistent browser storage
+- Chinese / English interface switching, with Chinese as the default language
 - tunable time, terrain, camera, render distance, fog, and shadows
 - collectibles and simple environmental objects
 - general-purpose entity + interaction system
@@ -57,12 +58,13 @@ The gear button opens a right-side settings drawer. Opening it releases pointer 
 
 Current settings include:
 
+- **General** — switch the interface between Chinese and English; the choice is persisted and applied after a quick reload
 - **Time** — enable/pause the cycle, allow/disallow full night, change day length, scrub time of day
 - **Terrain** — tune macro/hill/detail scale and amplitude plus spawn flattening/blending
 - **Camera** — choose first/third person, third-person distance, look sensitivity
-- **Visual** — chunk view distance, fog distance, shadows
+- **Visual** — chunk view distance, fog distance, shadows, sun, and moon visibility
 
-Settings are stored in `localStorage` and survive page refreshes. `Reset to defaults` restores the values derived from `GAME_CONFIG`.
+Settings are stored in `localStorage` and survive page refreshes. `Reset to defaults` restores the values derived from `GAME_CONFIG`; Chinese is the default interface language.
 
 Terrain parameters are applied with **Apply & regenerate terrain**. V1 intentionally persists the new terrain settings and reloads the world so terrain-anchored content, entities, collectibles, player placement, and streamed chunks are rebuilt consistently from the new parameters.
 
@@ -131,9 +133,10 @@ src/rendering/three/                # Three.js presentation, including player av
 src/input/                          # browser-specific interaction/input
 src/camera/CameraController.ts      # first/third-person camera behavior outside PlayerController
 src/settings/RuntimeSettings.ts     # mutable runtime preferences derived from static defaults
+src/i18n.ts                         # UI translation keys and language dictionaries
 ```
 
-The intended invariant is that code under `src/core/` does not import `three`, DOM APIs, rendering objects, or UI objects.
+The intended invariant is that code under `src/core/` does not import `three`, DOM APIs, rendering objects, UI objects, or localized presentation strings.
 
 `GAME_CONFIG` remains the source of defaults. Runtime tuning lives separately in `RuntimeSettings`; the settings UI does not turn the static config into a global mutable singleton.
 
