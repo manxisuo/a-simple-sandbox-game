@@ -11,6 +11,7 @@ export class ChunkManager {
     this.activeChunks = new Map();
     this.colliders = [];
     this.currentChunk = { x: Number.NaN, z: Number.NaN };
+    this.dayGroundColor = new THREE.Color(0x35a853);
   }
 
   update(position) {
@@ -50,12 +51,16 @@ export class ChunkManager {
   _unloadChunk(key, chunk) {
     this.scene.remove(chunk.group);
     chunk.grid.geometry.dispose();
-    if (Array.isArray(chunk.grid.material)) {
-      for (const material of chunk.grid.material) material.dispose();
-    } else {
-      chunk.grid.material.dispose();
-    }
+    this._forEachGridMaterial(chunk.grid, material => material.dispose());
     this.activeChunks.delete(key);
+  }
+
+  _forEachGridMaterial(grid, callback) {
+    if (Array.isArray(grid.material)) {
+      for (const material of grid.material) callback(material);
+    } else {
+      callback(grid.material);
+    }
   }
 
   _rebuildColliders() {
@@ -68,12 +73,14 @@ export class ChunkManager {
   setDaylight(daylight) {
     this.resources.groundMaterial.color
       .set(0x173c2b)
-      .lerp(new THREE.Color(0x35a853), daylight);
+      .lerp(this.dayGroundColor, daylight);
 
     const opacity = 0.1 + daylight * 0.24;
     this.resources.gridOpacity = opacity;
     for (const chunk of this.activeChunks.values()) {
-      chunk.grid.material.opacity = opacity;
+      this._forEachGridMaterial(chunk.grid, material => {
+        material.opacity = opacity;
+      });
     }
   }
 
