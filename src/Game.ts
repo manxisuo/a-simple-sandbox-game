@@ -215,6 +215,18 @@ export class Game {
       case 'companion.petted':
         this.ui.showMessage(t(locale, 'message.companionPetted', { affection: Number(event.data?.affection ?? 1) }), 2.6);
         break;
+      case 'companion.leads': {
+        const interest = String(event.data?.interest ?? event.targetId ?? '');
+        const key = interest === 'glow-bloom-origin'
+          ? 'message.companionLeadsBloom'
+          : interest === 'resonance-spire-origin'
+            ? 'message.companionLeadsSpire'
+            : interest === 'memory-stone-origin'
+              ? 'message.companionLeadsMemory'
+              : 'message.companionLeadsWhisperling';
+        this.ui.showMessage(t(locale, key), 3.4);
+        break;
+      }
       case 'memory.touched':
         this.ui.showMessage(t(locale, 'message.memoryTouched', { touches: Number(event.data?.touches ?? 1) }), 3.2);
         break;
