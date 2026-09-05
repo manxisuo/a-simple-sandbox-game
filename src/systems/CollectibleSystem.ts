@@ -1,12 +1,25 @@
 import * as THREE from 'three';
+import type { HeightSampler, RandomSource, UIController } from '../types';
+import type { PlayerController } from '../player/PlayerController';
+
+interface CollectibleSystemOptions {
+  scene: THREE.Scene;
+  player: PlayerController;
+  ui: UIController;
+  rand: RandomSource;
+  getGroundHeight: HeightSampler;
+}
 
 export class CollectibleSystem {
-  constructor({ scene, player, ui, rand, getGroundHeight }) {
+  collected = 0;
+  private readonly player: PlayerController;
+  private readonly ui: UIController;
+  private readonly crystals: THREE.Mesh[] = [];
+  private allCollectedShown = false;
+
+  constructor({ scene, player, ui, rand, getGroundHeight }: CollectibleSystemOptions) {
     this.player = player;
     this.ui = ui;
-    this.collected = 0;
-    this.allCollectedShown = false;
-    this.crystals = [];
 
     const group = new THREE.Group();
     scene.add(group);
@@ -20,7 +33,7 @@ export class CollectibleSystem {
       metalness: 0.2
     });
 
-    const positions = [
+    const positions: Array<[number, number]> = [
       [-14, -18], [21, -12], [29, 24], [-31, 19], [7, 34], [-39, -27]
     ];
 
@@ -35,17 +48,19 @@ export class CollectibleSystem {
     }
   }
 
-  get total() {
+  get total(): number {
     return this.crystals.length;
   }
 
-  update(time, delta) {
+  update(time: number, delta: number): void {
     for (const crystal of this.crystals) {
       if (!crystal.visible) continue;
 
+      const phase = Number(crystal.userData.phase ?? 0);
+      const baseY = Number(crystal.userData.baseY ?? crystal.position.y);
       crystal.rotation.y += delta * 1.3;
-      crystal.rotation.x = Math.sin(time * 0.9 + crystal.userData.phase) * 0.12;
-      crystal.position.y = crystal.userData.baseY + Math.sin(time * 2.2 + crystal.userData.phase) * 0.18;
+      crystal.rotation.x = Math.sin(time * 0.9 + phase) * 0.12;
+      crystal.position.y = baseY + Math.sin(time * 2.2 + phase) * 0.18;
 
       const dx = this.player.position.x - crystal.position.x;
       const dz = this.player.position.z - crystal.position.z;

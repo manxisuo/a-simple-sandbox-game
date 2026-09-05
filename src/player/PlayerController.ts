@@ -1,25 +1,42 @@
 import * as THREE from 'three';
+import type { Axis, HeightSampler, PlayerConfig } from '../types';
+
+interface PlayerControllerOptions {
+  camera: THREE.PerspectiveCamera;
+  renderer: THREE.WebGLRenderer;
+  colliders: THREE.Box3[];
+  getGroundHeight: HeightSampler;
+  config: PlayerConfig;
+}
 
 export class PlayerController {
-  constructor({ camera, renderer, colliders, getGroundHeight, config }) {
+  readonly position: THREE.Vector3;
+  readonly velocity = new THREE.Vector3();
+
+  private readonly camera: THREE.PerspectiveCamera;
+  private readonly renderer: THREE.WebGLRenderer;
+  private readonly colliders: THREE.Box3[];
+  private readonly getGroundHeight: HeightSampler;
+  private readonly config: PlayerConfig;
+  private readonly keys = new Set<string>();
+
+  private yaw = 0;
+  private pitch = 0;
+  private grounded = false;
+
+  constructor({ camera, renderer, colliders, getGroundHeight, config }: PlayerControllerOptions) {
     this.camera = camera;
     this.renderer = renderer;
     this.colliders = colliders;
     this.getGroundHeight = getGroundHeight;
     this.config = config;
-    this.keys = new Set();
-
     this.position = new THREE.Vector3(0, getGroundHeight(0, 0) + config.height, 0);
-    this.velocity = new THREE.Vector3();
-    this.yaw = 0;
-    this.pitch = 0;
-    this.grounded = false;
 
-    this._bindEvents();
+    this.bindEvents();
     this.updateCamera();
   }
 
-  _bindEvents() {
+  private bindEvents(): void {
     document.addEventListener('mousemove', event => {
       if (document.pointerLockElement !== this.renderer.domElement) return;
       this.yaw -= event.movementX * this.config.lookSensitivity;
@@ -38,25 +55,19 @@ export class PlayerController {
     document.addEventListener('keyup', event => this.keys.delete(event.code));
   }
 
-  _playerAabbAt(position) {
-    return {
-      min: new THREE.Vector3(position.x - this.config.radius, position.y - this.config.height, position.z - this.config.radius),
-      max: new THREE.Vector3(position.x + this.config.radius, position.y, position.z + this.config.radius)
-    };
+  private playerAabbAt(position: THREE.Vector3): THREE.Box3 {
+    return new THREE.Box3(
+      new THREE.Vector3(position.x - this.config.radius, position.y - this.config.height, position.z - this.config.radius),
+      new THREE.Vector3(position.x + this.config.radius, position.y, position.z + this.config.radius)
+    );
   }
 
-  _intersects(a, b) {
-    return a.min.x < b.max.x && a.max.x > b.min.x &&
-      a.min.y < b.max.y && a.max.y > b.min.y &&
-      a.min.z < b.max.z && a.max.z > b.min.z;
+  private collides(position: THREE.Vector3): boolean {
+    const bounds = this.playerAabbAt(position);
+    return this.colliders.some(collider => bounds.intersectsBox(collider));
   }
 
-  _collides(position) {
-    const bounds = this._playerAabbAt(position);
-    return this.colliders.some(collider => this._intersects(bounds, collider));
-  }
-
-  _moveAxis(axis, amount) {
+  private moveAxis(axis: Axis, amount: number): void {
     if (amount === 0) return;
 
     this.position[axis] += amount;
@@ -72,7 +83,7 @@ export class PlayerController {
       this.grounded = false;
     }
 
-    if (this._collides(this.position)) {
+    if (this.collides(this.position)) {
       this.position[axis] -= amount;
       if (axis === 'y') {
         this.velocity.y = 0;
@@ -81,7 +92,7 @@ export class PlayerController {
     }
   }
 
-  update(delta) {
+  update(delta: number): void {
     const forwardInput = (this.keys.has('KeyW') ? 1 : 0) - (this.keys.has('KeyS') ? 1 : 0);
     const rightInput = (this.keys.has('KeyD') ? 1 : 0) - (this.keys.has('KeyA') ? 1 : 0);
     const forward = new THREE.Vector3(-Math.sin(this.yaw), 0, -Math.cos(this.yaw));
@@ -96,14 +107,14 @@ export class PlayerController {
     const speed = this.config.moveSpeed * (sprinting ? this.config.sprintMultiplier : 1);
     const horizontalStep = speed * delta;
 
-    this._moveAxis('x', wish.x * horizontalStep);
-    this._moveAxis('z', wish.z * horizontalStep);
+    this.moveAxis('x', wish.x * horizontalStep);
+    this.moveAxis('z', wish.z * horizontalStep);
     this.velocity.y -= this.config.gravity * delta;
-    this._moveAxis('y', this.velocity.y * delta);
+    this.moveAxis('y', this.velocity.y * delta);
     this.updateCamera();
   }
 
-  updateCamera() {
+  private updateCamera(): void {
     this.camera.position.copy(this.position);
     this.camera.rotation.order = 'YXZ';
     this.camera.rotation.set(this.pitch, this.yaw, 0);

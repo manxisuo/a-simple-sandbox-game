@@ -1,3 +1,5 @@
+import type { GameConfig } from './types';
+
 export const GAME_CONFIG = {
   world: {
     seed: 32648517,
@@ -35,4 +37,4 @@ export const GAME_CONFIG = {
     maxPixelRatio: 2,
     exposure: 1.05
   }
-};
+} satisfies GameConfig;

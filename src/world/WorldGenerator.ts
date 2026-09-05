@@ -1,7 +1,18 @@
 import * as THREE from 'three';
-import { TerrainHeight } from './TerrainHeight.js';
+import { TerrainHeight } from './TerrainHeight';
+import type { GeneratedChunk, RandomSource, WorldConfig, WorldResources } from '../types';
 
-export function createSeededRandom(seed) {
+interface WorldGeneratorOptions {
+  config: WorldConfig;
+  resources: WorldResources;
+}
+
+interface ColliderEntry {
+  mesh: THREE.Object3D;
+  box: THREE.Box3;
+}
+
+export function createSeededRandom(seed: number): RandomSource {
   let value = seed >>> 0;
   return () => {
     value = (value * 1664525 + 1013904223) >>> 0;
@@ -9,7 +20,7 @@ export function createSeededRandom(seed) {
   };
 }
 
-function hashChunk(seed, chunkX, chunkZ) {
+function hashChunk(seed: number, chunkX: number, chunkZ: number): number {
   let h = seed >>> 0;
   h ^= Math.imul(chunkX, 0x9e3779b1);
   h = Math.imul(h ^ (h >>> 16), 0x85ebca6b);
@@ -19,21 +30,25 @@ function hashChunk(seed, chunkX, chunkZ) {
 }
 
 export class WorldGenerator {
-  constructor({ config, resources }) {
+  private readonly config: WorldConfig;
+  private readonly resources: WorldResources;
+  private readonly terrainHeight: TerrainHeight;
+
+  constructor({ config, resources }: WorldGeneratorOptions) {
     this.config = config;
     this.resources = resources;
     this.terrainHeight = new TerrainHeight(config);
   }
 
-  getHeight(worldX, worldZ) {
+  getHeight(worldX: number, worldZ: number): number {
     return this.terrainHeight.getHeight(worldX, worldZ);
   }
 
-  generate(chunkX, chunkZ) {
+  generate(chunkX: number, chunkZ: number): GeneratedChunk {
     const { chunkSize, seed, objectsPerChunk, terrain } = this.config;
     const rand = createSeededRandom(hashChunk(seed, chunkX, chunkZ));
     const group = new THREE.Group();
-    const colliders = [];
+    const colliders: ColliderEntry[] = [];
     const half = chunkSize / 2;
     const centerX = chunkX * chunkSize + half;
     const centerZ = chunkZ * chunkSize + half;
@@ -43,7 +58,7 @@ export class WorldGenerator {
 
     const groundGeometry = new THREE.PlaneGeometry(chunkSize, chunkSize, terrain.segments, terrain.segments);
     groundGeometry.rotateX(-Math.PI / 2);
-    const positions = groundGeometry.attributes.position;
+    const positions = groundGeometry.getAttribute('position') as THREE.BufferAttribute;
 
     for (let i = 0; i < positions.count; i += 1) {
       const localX = positions.getX(i);
@@ -71,9 +86,9 @@ export class WorldGenerator {
 
       const groundY = this.getHeight(worldX, worldZ);
       const roll = rand();
-      if (roll < 0.38) this._createBox(group, colliders, x, groundY, z, rand);
-      else if (roll < 0.82) this._createTree(group, colliders, x, groundY, z, rand);
-      else this._createRock(group, colliders, x, groundY, z, rand);
+      if (roll < 0.38) this.createBox(group, colliders, x, groundY, z, rand);
+      else if (roll < 0.82) this.createTree(group, colliders, x, groundY, z, rand);
+      else this.createRock(group, colliders, x, groundY, z, rand);
     }
 
     group.updateMatrixWorld(true);
@@ -89,7 +104,14 @@ export class WorldGenerator {
     };
   }
 
-  _createBox(group, colliders, x, groundY, z, rand) {
+  private createBox(
+    group: THREE.Group,
+    colliders: ColliderEntry[],
+    x: number,
+    groundY: number,
+    z: number,
+    rand: RandomSource
+  ): void {
     const mesh = new THREE.Mesh(this.resources.boxGeometry, this.resources.boxMaterial);
     const width = 1.2 + rand() * 1.8;
     const height = 1 + rand() * 2.3;
@@ -103,7 +125,14 @@ export class WorldGenerator {
     colliders.push({ mesh, box: new THREE.Box3() });
   }
 
-  _createTree(group, colliders, x, groundY, z, rand) {
+  private createTree(
+    group: THREE.Group,
+    colliders: ColliderEntry[],
+    x: number,
+    groundY: number,
+    z: number,
+    rand: RandomSource
+  ): void {
     const trunkHeight = 2.2 + rand() * 1.4;
     const trunkRadius = 0.24 + rand() * 0.12;
     const crownRadius = 1.05 + rand() * 0.55;
@@ -125,7 +154,14 @@ export class WorldGenerator {
     colliders.push({ mesh: crown, box: new THREE.Box3() });
   }
 
-  _createRock(group, colliders, x, groundY, z, rand) {
+  private createRock(
+    group: THREE.Group,
+    colliders: ColliderEntry[],
+    x: number,
+    groundY: number,
+    z: number,
+    rand: RandomSource
+  ): void {
     const mesh = new THREE.Mesh(this.resources.rockGeometry, this.resources.rockMaterial);
     const scale = 0.7 + rand() * 1.2;
     mesh.scale.set(scale, scale * (0.65 + rand() * 0.4), scale);

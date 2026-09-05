@@ -1,4 +1,6 @@
-function hash2D(seed, x, z) {
+import type { WorldConfig } from '../types';
+
+function hash2D(seed: number, x: number, z: number): number {
   let h = seed >>> 0;
   h ^= Math.imul(x | 0, 0x9e3779b1);
   h = Math.imul(h ^ (h >>> 16), 0x85ebca6b);
@@ -7,19 +9,19 @@ function hash2D(seed, x, z) {
   return (h ^ (h >>> 15)) >>> 0;
 }
 
-function hashToSignedUnit(seed, x, z) {
+function hashToSignedUnit(seed: number, x: number, z: number): number {
   return (hash2D(seed, x, z) / 4294967295) * 2 - 1;
 }
 
-function smoothstep(t) {
+function smoothstep(t: number): number {
   return t * t * (3 - 2 * t);
 }
 
-function lerp(a, b, t) {
+function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;
 }
 
-function valueNoise2D(seed, x, z) {
+function valueNoise2D(seed: number, x: number, z: number): number {
   const x0 = Math.floor(x);
   const z0 = Math.floor(z);
   const x1 = x0 + 1;
@@ -37,7 +39,7 @@ function valueNoise2D(seed, x, z) {
   return lerp(nx0, nx1, tz);
 }
 
-function fbm(seed, x, z, octaves = 4) {
+function fbm(seed: number, x: number, z: number, octaves = 4): number {
   let amplitude = 1;
   let frequency = 1;
   let total = 0;
@@ -54,13 +56,25 @@ function fbm(seed, x, z, octaves = 4) {
 }
 
 export class TerrainHeight {
-  constructor(config) {
+  private readonly seed: number;
+  private readonly terrain: WorldConfig['terrain'];
+
+  constructor(config: WorldConfig) {
     this.seed = config.seed;
     this.terrain = config.terrain;
   }
 
-  getHeight(worldX, worldZ) {
-    const { macroScale, macroAmplitude, hillScale, hillAmplitude, detailScale, detailAmplitude, spawnFlatRadius, spawnBlendRadius } = this.terrain;
+  getHeight(worldX: number, worldZ: number): number {
+    const {
+      macroScale,
+      macroAmplitude,
+      hillScale,
+      hillAmplitude,
+      detailScale,
+      detailAmplitude,
+      spawnFlatRadius,
+      spawnBlendRadius
+    } = this.terrain;
 
     const macro = fbm(this.seed ^ 0x1f123bb5, worldX * macroScale, worldZ * macroScale, 4) * macroAmplitude;
     const hills = fbm(this.seed ^ 0x5f356495, worldX * hillScale, worldZ * hillScale, 3) * hillAmplitude;
@@ -69,9 +83,11 @@ export class TerrainHeight {
 
     const distance = Math.hypot(worldX, worldZ);
     if (distance < spawnBlendRadius) {
-      const t = Math.max(0, Math.min(1, (distance - spawnFlatRadius) / Math.max(0.001, spawnBlendRadius - spawnFlatRadius)));
-      const blend = smoothstep(t);
-      height *= blend;
+      const t = Math.max(
+        0,
+        Math.min(1, (distance - spawnFlatRadius) / Math.max(0.001, spawnBlendRadius - spawnFlatRadius))
+      );
+      height *= smoothstep(t);
     }
 
     return height;

@@ -1,16 +1,28 @@
 import * as THREE from 'three';
-import { GAME_CONFIG } from './config.js';
-import { PlayerController } from './player/PlayerController.js';
-import { createWorld } from './world/createWorld.js';
-import { CollectibleSystem } from './systems/CollectibleSystem.js';
-import { AtmosphereSystem } from './systems/AtmosphereSystem.js';
-import { DayNightSystem } from './systems/DayNightSystem.js';
-import { createUI } from './ui/createUI.js';
+import { GAME_CONFIG } from './config';
+import { PlayerController } from './player/PlayerController';
+import { createWorld } from './world/createWorld';
+import { CollectibleSystem } from './systems/CollectibleSystem';
+import { AtmosphereSystem } from './systems/AtmosphereSystem';
+import { DayNightSystem } from './systems/DayNightSystem';
+import { createUI } from './ui/createUI';
+import type { UIController, WorldRuntime } from './types';
 
 export class Game {
-  constructor(app) {
+  private readonly app: HTMLElement;
+  private readonly clock = new THREE.Clock();
+  private readonly renderer: THREE.WebGLRenderer;
+  private readonly scene: THREE.Scene;
+  private readonly camera: THREE.PerspectiveCamera;
+  private readonly ui: UIController;
+  private readonly world: WorldRuntime;
+  private readonly player: PlayerController;
+  private readonly collectibles: CollectibleSystem;
+  private readonly atmosphere: AtmosphereSystem;
+  private readonly dayNight: DayNightSystem;
+
+  constructor(app: HTMLElement) {
     this.app = app;
-    this.clock = new THREE.Clock();
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, GAME_CONFIG.renderer.maxPixelRatio));
@@ -20,7 +32,7 @@ export class Game {
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = GAME_CONFIG.renderer.exposure;
-    app.appendChild(this.renderer.domElement);
+    this.app.appendChild(this.renderer.domElement);
 
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x78bdff);
@@ -64,11 +76,11 @@ export class Game {
       config: GAME_CONFIG.dayNight
     });
 
-    this._bindWindowEvents();
+    this.bindWindowEvents();
     this.dayNight.update(0);
   }
 
-  _bindWindowEvents() {
+  private bindWindowEvents(): void {
     window.addEventListener('resize', () => {
       this.camera.aspect = window.innerWidth / window.innerHeight;
       this.camera.updateProjectionMatrix();
@@ -76,8 +88,8 @@ export class Game {
     });
   }
 
-  start() {
-    const frame = () => {
+  start(): void {
+    const frame = (): void => {
       const delta = Math.min(this.clock.getDelta(), 0.05);
       const time = this.clock.elapsedTime;
 

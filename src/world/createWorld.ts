@@ -1,11 +1,12 @@
 import * as THREE from 'three';
-import { ChunkManager } from './ChunkManager.js';
-import { createSeededRandom } from './WorldGenerator.js';
+import { ChunkManager } from './ChunkManager';
+import { createSeededRandom } from './WorldGenerator';
+import type { WorldConfig, WorldResources, WorldRuntime } from '../types';
 
-export function createWorld(scene, config) {
+export function createWorld(scene: THREE.Scene, config: WorldConfig): WorldRuntime {
   const rand = createSeededRandom(config.seed ^ 0x51f15e);
 
-  const resources = {
+  const resources: WorldResources = {
     boxGeometry: new THREE.BoxGeometry(1, 1, 1),
     trunkGeometry: new THREE.CylinderGeometry(1, 1, 1, 10),
     crownGeometry: new THREE.SphereGeometry(1, 18, 14),
@@ -20,7 +21,6 @@ export function createWorld(scene, config) {
   const chunkManager = new ChunkManager({ scene, config, resources });
   chunkManager.update(new THREE.Vector3(0, 0, 0));
 
-  // The campfire remains a unique landmark near world origin, on the terrain surface.
   const campfireX = 5.5;
   const campfireZ = -4.5;
   const campfireY = chunkManager.getHeight(campfireX, campfireZ);
@@ -87,10 +87,10 @@ export function createWorld(scene, config) {
     clouds,
     cloudMaterial,
     rand,
-    getHeight(worldX, worldZ) {
+    getHeight(worldX: number, worldZ: number): number {
       return chunkManager.getHeight(worldX, worldZ);
     },
-    setDaylight(daylight) {
+    setDaylight(daylight: number): void {
       chunkManager.setDaylight(daylight);
     }
   };

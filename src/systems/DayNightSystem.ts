@@ -1,7 +1,39 @@
 import * as THREE from 'three';
+import type { DayNightConfig, UIController, WorldRuntime } from '../types';
+import type { PlayerController } from '../player/PlayerController';
+import type { CollectibleSystem } from './CollectibleSystem';
+import type { AtmosphereSystem } from './AtmosphereSystem';
+
+interface DayNightSystemOptions {
+  scene: THREE.Scene;
+  renderer: THREE.WebGLRenderer;
+  world: WorldRuntime;
+  player: PlayerController;
+  ui: UIController;
+  collectibles: CollectibleSystem;
+  atmosphere: AtmosphereSystem;
+  config: DayNightConfig;
+}
 
 export class DayNightSystem {
-  constructor({ scene, renderer, world, player, ui, collectibles, atmosphere, config }) {
+  private readonly scene: THREE.Scene;
+  private readonly renderer: THREE.WebGLRenderer;
+  private readonly world: WorldRuntime;
+  private readonly player: PlayerController;
+  private readonly ui: UIController;
+  private readonly collectibles: CollectibleSystem;
+  private readonly atmosphere: AtmosphereSystem;
+  private readonly config: DayNightConfig;
+  private elapsed: number;
+
+  private readonly daySky = new THREE.Color(0x78bdff);
+  private readonly duskSky = new THREE.Color(0xe58a68);
+  private readonly nightSky = new THREE.Color(0x071323);
+  private readonly hemisphereLight: THREE.HemisphereLight;
+  private readonly sunLight: THREE.DirectionalLight;
+  private readonly moonLight: THREE.DirectionalLight;
+
+  constructor({ scene, renderer, world, player, ui, collectibles, atmosphere, config }: DayNightSystemOptions) {
     this.scene = scene;
     this.renderer = renderer;
     this.world = world;
@@ -11,10 +43,6 @@ export class DayNightSystem {
     this.atmosphere = atmosphere;
     this.config = config;
     this.elapsed = config.cycleSeconds * config.initialProgress;
-
-    this.daySky = new THREE.Color(0x78bdff);
-    this.duskSky = new THREE.Color(0xe58a68);
-    this.nightSky = new THREE.Color(0x071323);
 
     this.hemisphereLight = new THREE.HemisphereLight(0xcfeaff, 0x59733c, 1.7);
     scene.add(this.hemisphereLight);
@@ -34,7 +62,7 @@ export class DayNightSystem {
     scene.add(this.moonLight);
   }
 
-  update(delta) {
+  update(delta: number): void {
     this.elapsed += delta;
     const cycle = (this.elapsed % this.config.cycleSeconds) / this.config.cycleSeconds;
     const angle = cycle * Math.PI * 2 - Math.PI / 2;
@@ -44,8 +72,8 @@ export class DayNightSystem {
 
     const sky = this.nightSky.clone().lerp(this.daySky, daylight);
     if (duskAmount > 0) sky.lerp(this.duskSky, duskAmount * 0.56);
-    this.scene.background.copy(sky);
-    this.scene.fog.color.copy(sky);
+    if (this.scene.background instanceof THREE.Color) this.scene.background.copy(sky);
+    if (this.scene.fog instanceof THREE.Fog) this.scene.fog.color.copy(sky);
 
     const px = this.player.position.x;
     const pz = this.player.position.z;
