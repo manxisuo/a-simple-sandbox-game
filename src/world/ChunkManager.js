@@ -50,17 +50,8 @@ export class ChunkManager {
 
   _unloadChunk(key, chunk) {
     this.scene.remove(chunk.group);
-    chunk.grid.geometry.dispose();
-    this._forEachGridMaterial(chunk.grid, material => material.dispose());
+    chunk.ground.geometry.dispose();
     this.activeChunks.delete(key);
-  }
-
-  _forEachGridMaterial(grid, callback) {
-    if (Array.isArray(grid.material)) {
-      for (const material of grid.material) callback(material);
-    } else {
-      callback(grid.material);
-    }
   }
 
   _rebuildColliders() {
@@ -70,18 +61,14 @@ export class ChunkManager {
     }
   }
 
+  getHeight(worldX, worldZ) {
+    return this.generator.getHeight(worldX, worldZ);
+  }
+
   setDaylight(daylight) {
     this.resources.groundMaterial.color
       .set(0x173c2b)
       .lerp(this.dayGroundColor, daylight);
-
-    const opacity = 0.1 + daylight * 0.24;
-    this.resources.gridOpacity = opacity;
-    for (const chunk of this.activeChunks.values()) {
-      this._forEachGridMaterial(chunk.grid, material => {
-        material.opacity = opacity;
-      });
-    }
   }
 
   get loadedChunkCount() {
