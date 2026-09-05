@@ -7,6 +7,9 @@ interface CoreEntity extends EntitySnapshot {
   retargetIn?: number;
   pulseUntil?: number;
   idleUntil?: number;
+  interestTargetId?: EntityId;
+  interestUntil?: number;
+  noticeCooldownUntil?: number;
 }
 
 interface EntitySystemOptions {
@@ -20,6 +23,17 @@ function distance2D(a: Vec3, b: Vec3): number {
 
 function cloneVec3(value: Vec3): Vec3 {
   return { x: value.x, y: value.y, z: value.z };
+}
+
+function pointNear(source: Vec3, target: Vec3, stopDistance: number): Vec3 {
+  const dx = source.x - target.x;
+  const dz = source.z - target.z;
+  const length = Math.hypot(dx, dz) || 1;
+  return {
+    x: target.x + (dx / length) * stopDistance,
+    y: target.y,
+    z: target.z + (dz / length) * stopDistance
+  };
 }
 
 export class EntitySystem {
@@ -128,10 +142,19 @@ export class EntitySystem {
       position: cloneVec3(companionStart),
       rotationY: Math.PI,
       interactionLabel: 'pet your companion',
-      state: { mood: 'content', activity: 'wandering', affection: 0, bonded: true },
+      state: {
+        mood: 'content',
+        activity: 'wandering',
+        affection: 0,
+        bonded: true,
+        interest: 'none',
+        nighttimeComfort: false
+      },
       target: cloneVec3(companionStart),
       retargetIn: 0.5,
-      idleUntil: 0
+      idleUntil: 0,
+      interestUntil: 0,
+      noticeCooldownUntil: 0
     });
 
     this.entities.set('memory-stone-origin', {
@@ -246,14 +269,43 @@ export class EntitySystem {
     creature.position.y = this.getGroundHeight(creature.position.x, creature.position.z) + 0.85;
   }
 
+  private chooseCompanionInterest(companion: CoreEntity, context: EntityUpdateContext): CoreEntity | null {
+    const bloom = this.entities.get('glow-bloom-origin');
+    const spire = this.entities.get('resonance-spire-origin');
+    const memory = this.entities.get('memory-stone-origin');
+    const whisperling = this.entities.get('whisperling-origin');
+
+    const candidates: Array<{ entity: CoreEntity; weight: number }> = [];
+    const add = (entity: CoreEntity | undefined, weight: number, maxDistance: number): void => {
+      if (!entity) return;
+      const distance = distance2D(entity.position, context.playerPosition);
+      if (distance >= 5 && distance <= maxDistance) candidates.push({ entity, weight });
+    };
+
+    if (bloom && Boolean(bloom.state.awake)) add(bloom, 5, 22);
+    if (spire && Boolean(spire.state.charged)) add(spire, 3.5, 20);
+    if (memory && Number(memory.state.touches ?? 0) > 0) add(memory, 2.5, 20);
+    if (whisperling && Boolean(whisperling.state.greeted)) add(whisperling, 2, 16);
+
+    if (candidates.length === 0) return null;
+    const total = candidates.reduce((sum, candidate) => sum + candidate.weight, 0);
+    let roll = this.rand() * total;
+    for (const candidate of candidates) {
+      roll -= candidate.weight;
+      if (roll <= 0) return candidate.entity;
+    }
+    return candidates[candidates.length - 1]?.entity ?? null;
+  }
+
   private updateCompanion(context: EntityUpdateContext): void {
     const companion = this.entities.get('companion-origin');
     if (!companion || !companion.target) return;
 
     const playerDistance = distance2D(companion.position, context.playerPosition);
+    const spire = this.entities.get('resonance-spire-origin');
+    const isNight = context.daylight < 0.18;
+    companion.state.nighttimeComfort = isNight && playerDistance < 4.2;
 
-    // If the player gets extremely far away (for example after terrain/settings reloads or future teleportation),
-    // reunite the companion rather than leaving it stranded several chunks behind.
     if (playerDistance > 42) {
       const angle = this.rand() * Math.PI * 2;
       companion.position.x = context.playerPosition.x + Math.cos(angle) * 3.5;
@@ -261,6 +313,8 @@ export class EntitySystem {
       companion.position.y = this.getGroundHeight(companion.position.x, companion.position.z) + 0.46;
       companion.target = cloneVec3(companion.position);
       companion.state.activity = 'rejoined';
+      companion.state.interest = 'player';
+      companion.interestTargetId = undefined;
       companion.retargetIn = 0.8;
       return;
     }
@@ -278,7 +332,6 @@ export class EntitySystem {
     companion.retargetIn = (companion.retargetIn ?? 0) - context.delta;
 
     if (catchUp) {
-      // Aim near the player rather than at the exact player position so catching up still feels organic.
       const angle = Math.atan2(companion.position.z - context.playerPosition.z, companion.position.x - context.playerPosition.x);
       companion.target = {
         x: context.playerPosition.x + Math.cos(angle) * 2.8,
@@ -287,7 +340,28 @@ export class EntitySystem {
       };
       companion.state.activity = playerDistance > 14 ? 'bounding' : 'following';
       companion.state.mood = 'focused';
+      companion.state.interest = 'player';
+      companion.interestTargetId = undefined;
       companion.retargetIn = 0.35;
+    } else if (spire && distance2D(companion.position, spire.position) < 4.8) {
+      companion.target = pointNear(context.playerPosition, spire.position, 6.2);
+      companion.state.activity = 'hesitating';
+      companion.state.mood = 'uneasy';
+      companion.state.interest = 'resonance-spire';
+      companion.interestTargetId = undefined;
+      companion.retargetIn = 1.1;
+    } else if (isNight && playerDistance > 4.2) {
+      const angle = this.rand() * Math.PI * 2;
+      companion.target = {
+        x: context.playerPosition.x + Math.cos(angle) * 2.4,
+        y: companion.position.y,
+        z: context.playerPosition.z + Math.sin(angle) * 2.4
+      };
+      companion.state.activity = 'seeking-company';
+      companion.state.mood = 'soft';
+      companion.state.interest = 'player';
+      companion.interestTargetId = undefined;
+      companion.retargetIn = 0.8;
     } else if (close) {
       const dx = companion.position.x - context.playerPosition.x;
       const dz = companion.position.z - context.playerPosition.z;
@@ -299,29 +373,72 @@ export class EntitySystem {
       };
       companion.state.activity = 'making-room';
       companion.state.mood = 'content';
+      companion.state.interest = 'player';
+      companion.interestTargetId = undefined;
       companion.retargetIn = 0.9;
-    } else if ((companion.retargetIn ?? 0) <= 0) {
-      // Wander inside a loose moving ring around the player. This is what prevents the companion from
-      // feeling like a rigid object attached to a fixed offset.
-      const angle = this.rand() * Math.PI * 2;
-      const radius = 2.4 + this.rand() * 3.2;
-      companion.target = {
-        x: context.playerPosition.x + Math.cos(angle) * radius,
-        y: companion.position.y,
-        z: context.playerPosition.z + Math.sin(angle) * radius
-      };
-      companion.state.activity = this.rand() < 0.22 ? 'sniffing' : 'wandering';
-      companion.state.mood = 'content';
-      companion.retargetIn = 1.6 + this.rand() * 3.2;
+    } else {
+      const activeInterest = companion.interestTargetId ? this.entities.get(companion.interestTargetId) : undefined;
+      const interestActive = activeInterest && (companion.interestUntil ?? 0) > context.time;
 
-      if (companion.state.activity === 'sniffing') companion.idleUntil = context.time + 0.7 + this.rand() * 1.2;
+      if (interestActive && activeInterest) {
+        const targetDistanceFromPlayer = distance2D(activeInterest.position, context.playerPosition);
+        if (targetDistanceFromPlayer <= 24) {
+          const stopDistance = activeInterest.id === 'resonance-spire-origin' ? 5.6 : activeInterest.id === 'glow-bloom-origin' ? 1.8 : 2.2;
+          companion.target = pointNear(context.playerPosition, activeInterest.position, stopDistance);
+          companion.state.activity = targetDistanceFromPlayer > 8 ? 'leading' : 'investigating';
+          companion.state.mood = activeInterest.id === 'resonance-spire-origin' ? 'uneasy' : 'curious';
+          companion.state.interest = activeInterest.id;
+        } else {
+          companion.interestTargetId = undefined;
+        }
+      } else if ((companion.retargetIn ?? 0) <= 0) {
+        companion.interestTargetId = undefined;
+        const interest = playerDistance < 7 && this.rand() < 0.48 ? this.chooseCompanionInterest(companion, context) : null;
+
+        if (interest) {
+          companion.interestTargetId = interest.id;
+          companion.interestUntil = context.time + 5 + this.rand() * 3;
+          const targetDistanceFromPlayer = distance2D(interest.position, context.playerPosition);
+          companion.target = pointNear(context.playerPosition, interest.position, interest.id === 'resonance-spire-origin' ? 5.6 : 2);
+          companion.state.activity = targetDistanceFromPlayer > 8 ? 'leading' : 'investigating';
+          companion.state.mood = interest.id === 'resonance-spire-origin' ? 'uneasy' : 'curious';
+          companion.state.interest = interest.id;
+          companion.retargetIn = 1.2;
+
+          if (targetDistanceFromPlayer > 8 && (companion.noticeCooldownUntil ?? 0) <= context.time) {
+            companion.noticeCooldownUntil = context.time + 12;
+            this.emit({
+              type: 'companion.leads',
+              sourceId: companion.id,
+              targetId: interest.id,
+              time: context.time,
+              data: { interest: interest.id }
+            });
+          }
+        } else {
+          const angle = this.rand() * Math.PI * 2;
+          const radius = isNight ? 2.2 + this.rand() * 2.3 : 2.4 + this.rand() * 3.2;
+          companion.target = {
+            x: context.playerPosition.x + Math.cos(angle) * radius,
+            y: companion.position.y,
+            z: context.playerPosition.z + Math.sin(angle) * radius
+          };
+          companion.state.activity = this.rand() < 0.22 ? 'sniffing' : 'wandering';
+          companion.state.mood = isNight ? 'soft' : 'content';
+          companion.state.interest = 'none';
+          companion.retargetIn = 1.6 + this.rand() * 3.2;
+
+          if (companion.state.activity === 'sniffing') companion.idleUntil = context.time + 0.7 + this.rand() * 1.2;
+        }
+      }
     }
 
     const dx = companion.target.x - companion.position.x;
     const dz = companion.target.z - companion.position.z;
     const distance = Math.hypot(dx, dz);
     if (distance > 0.1) {
-      const speed = playerDistance > 14 ? 12.5 : catchUp ? 6.8 : 1.55;
+      const activity = String(companion.state.activity ?? 'wandering');
+      const speed = playerDistance > 14 ? 12.5 : catchUp ? 6.8 : activity === 'leading' ? 2.8 : activity === 'seeking-company' ? 2.2 : 1.55;
       const step = Math.min(distance, speed * context.delta);
       companion.position.x += (dx / distance) * step;
       companion.position.z += (dz / distance) * step;
