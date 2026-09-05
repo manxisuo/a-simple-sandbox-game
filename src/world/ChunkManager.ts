@@ -60,13 +60,6 @@ export class ChunkManager {
     this.update(position);
   }
 
-  regenerate(position: THREE.Vector3): void {
-    for (const [key, chunk] of [...this.activeChunks]) this.unloadChunk(key, chunk);
-    this.colliders.length = 0;
-    this.currentChunk = { x: Number.NaN, z: Number.NaN };
-    this.update(position);
-  }
-
   private loadChunk(chunkX: number, chunkZ: number): void {
     const chunk = this.generator.generate(chunkX, chunkZ);
     this.activeChunks.set(chunk.key, chunk);
