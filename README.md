@@ -15,8 +15,10 @@ https://manxisuo.github.io/a-simple-sandbox-game/
 ## Current features
 
 - first-person movement, jumping, sprinting, pointer-lock mouse look
+- switchable first-person / third-person camera
+- simple third-person player avatar
 - deterministic infinite chunk streaming
-- seamless procedural height-field terrain
+- seamless procedural height-field terrain with more varied, steeper hills
 - day/night cycle, atmosphere, clouds, fireflies, campfire lighting
 - collectibles and simple environmental objects
 - general-purpose entity + interaction system
@@ -41,6 +43,7 @@ The current entity experiment includes examples such as:
 | Space | Jump |
 | Shift | Sprint |
 | E | Interact |
+| V | Toggle first / third person view |
 | Esc | Release pointer lock |
 
 ## Development
@@ -100,12 +103,13 @@ Conceptually:
         Renderer      Input
 ```
 
-The first concrete version of this separation already exists for entities:
+The first concrete version of this separation already exists for entities, and the player/camera boundary is beginning to follow the same direction:
 
 ```text
-src/core/entities/                  # renderer-independent simulation
-src/rendering/three/                # Three.js presentation
+src/core/entities/                  # renderer-independent entity simulation
+src/rendering/three/                # Three.js presentation, including player avatar
 src/input/                          # browser-specific interaction/input
+src/player/CameraController.ts      # first/third-person camera behavior outside PlayerController
 ```
 
 The intended invariant is that code under `src/core/` does not import `three`, DOM APIs, rendering objects, or UI objects.
@@ -140,6 +144,21 @@ observe consequences
 world changes
 ```
 
+## Visual direction
+
+The project deliberately avoids treating the world as a grid of cubes.
+
+Minecraft can be a useful reference for sandbox infrastructure, procedural worlds, streaming, persistence, and interaction design, but **its all-voxel / all-cube visual grammar is not a target for this project**.
+
+The current visual language favors:
+
+- continuous height-field terrain rather than block terrain
+- low-poly / geometric forms without requiring everything to be cubic
+- mixed primitives and irregular silhouettes for plants, creatures, relics, and structures
+- stylized simplicity without turning every object into voxel blocks
+
+Using a box as one modeling primitive is fine; making the whole world visually read as a cube grid is not.
+
 ## AI / LLM direction
 
 AI is a long-term direction, but it is **not** intended to mean merely adding chatbots to NPCs.
@@ -170,13 +189,14 @@ The world model, entity IDs, event history, and serializable state being introdu
 ## Project principles
 
 1. **Do not build a Minecraft clone.** Use existing sandbox games as infrastructure references, not as the product roadmap.
-2. **Three.js is a renderer, not the domain model.** Core simulation should increasingly work without it.
-3. **Prefer semantic world state over scene-graph state.** `Entity`, `Event`, `WorldState`, and memory matter more than `Mesh` and `Material` outside rendering code.
-4. **Keep the engine authoritative.** Future LLM/agent output must be validated before affecting the world.
-5. **Do not call AI at frame rate.** AI should be asynchronous, event-driven, and low-frequency.
-6. **Let architecture follow real gameplay pressure.** Avoid building abstract frameworks before concrete mechanics need them.
-7. **Favor interactions between world elements.** A world becomes interesting when entities affect each other, not only when everything reacts to the player.
-8. **Keep deterministic generation separate from mutable history.** Seed-based terrain/world generation should remain reproducible; player/world changes should live in explicit mutable state.
+2. **Do not adopt an all-cube visual grammar.** Preserve continuous terrain and a varied low-poly/geometric visual language instead of converging on a voxel-block world.
+3. **Three.js is a renderer, not the domain model.** Core simulation should increasingly work without it.
+4. **Prefer semantic world state over scene-graph state.** `Entity`, `Event`, `WorldState`, and memory matter more than `Mesh` and `Material` outside rendering code.
+5. **Keep the engine authoritative.** Future LLM/agent output must be validated before affecting the world.
+6. **Do not call AI at frame rate.** AI should be asynchronous, event-driven, and low-frequency.
+7. **Let architecture follow real gameplay pressure.** Avoid building abstract frameworks before concrete mechanics need them.
+8. **Favor interactions between world elements.** A world becomes interesting when entities affect each other, not only when everything reacts to the player.
+9. **Keep deterministic generation separate from mutable history.** Seed-based terrain/world generation should remain reproducible; player/world changes should live in explicit mutable state.
 
 ## Roadmap
 
@@ -184,4 +204,4 @@ The roadmap is intentionally directional rather than a fixed promise. See [ROADM
 
 ## Status
 
-Early experimental development. APIs, architecture, game mechanics, and visual style are expected to change significantly.
+Early experimental development. APIs, architecture, game mechanics, and visual style are expected to change significantly within the principles above.

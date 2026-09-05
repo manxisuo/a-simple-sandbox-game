@@ -106,6 +106,48 @@ Owns browser/rendering-specific targeting and input:
 
 This keeps camera and DOM knowledge outside the entity core.
 
+## Player / camera boundary
+
+The player subsystem is now beginning the same decoupling process.
+
+`PlayerController` owns player movement/simulation concerns such as:
+
+- position and velocity
+- movement input state
+- jump and gravity
+- collision handling
+- movement-facing direction
+
+It no longer owns the render camera or renderer.
+
+Camera/view concerns live separately:
+
+```text
+PlayerController
+      │ player state / view yaw
+      ▼
+CameraController
+      │
+      ├── first-person camera placement
+      └── third-person camera placement / smoothing
+```
+
+The third-person avatar is also a rendering concern:
+
+```text
+PlayerController state
+        ↓
+ThreePlayerAvatar
+        ↓
+THREE.Group / Mesh / Material
+```
+
+This is intentionally only a partial split. Browser movement input still lives with `PlayerController` for now. It should move out only when a concrete need justifies the next step.
+
+The important invariant is:
+
+> Camera mode and player simulation are separate concerns. Adding or changing a camera mode should not require rewriting player movement rules.
+
 ## Core data should be semantic and serializable
 
 Prefer structures like:
@@ -186,6 +228,33 @@ Animate bloom scale
 ```
 
 The renderer may interpolate, animate, or decorate, but gameplay logic should not depend on reading material/mesh values back from the renderer.
+
+The same applies to player presentation:
+
+```text
+Player simulation:
+position + movement-facing direction
+
+Renderer/camera:
+avatar orientation + camera position + camera smoothing
+```
+
+## Visual grammar is a presentation rule, not a voxel-world model
+
+The project deliberately avoids an all-voxel / all-cube visual grammar.
+
+This does **not** mean `BoxGeometry` is forbidden. A box is just one rendering primitive. The architectural concern is avoiding a design where semantic world structure is forced into a cube grid merely because the renderer can draw cubes efficiently.
+
+Preferred direction:
+
+- continuous height-field terrain
+- low-poly / geometric forms with varied silhouettes
+- different primitives or custom geometry for different kinds of objects
+- stylized simplicity without requiring a voxel representation
+
+Minecraft may be referenced for sandbox infrastructure, but not as the default visual or world-model representation.
+
+This distinction is important because renderer choices must not dictate the domain model.
 
 ## Procedural generation vs mutable state
 
@@ -279,11 +348,11 @@ This is important for latency, cost, determinism, and reliability.
 
 Do not rewrite the entire project at once.
 
-The current priority order is roughly:
+Current status / rough priority:
 
-1. **Entities** — currently being decoupled.
-2. **World generation** — separate semantic `ChunkDescription` from Three.js mesh construction when gameplay requires it.
-3. **Player** — separate player simulation, browser input, and Three.js camera control.
+1. **Entities** — core simulation is already separated from Three.js presentation.
+2. **Player / camera** — camera and avatar presentation are now separated from `PlayerController`; browser movement input remains coupled for now.
+3. **World generation** — separate semantic `ChunkDescription` from Three.js mesh construction when gameplay requires it.
 4. **Game time** — separate semantic clock/day phase from sky/light rendering.
 5. **Shared types** — gradually move Three.js-specific runtime types into rendering-specific modules.
 
@@ -320,8 +389,9 @@ use it for the next mechanic
 As the project grows, the intended dependency direction is:
 
 ```text
-rendering/three ───────► core
-input/browser ─────────► core
+rendering/three ───────► core / player state
+input/browser ─────────► core / controllers
+camera adapter ────────► player state
 ui ────────────────────► semantic state/events
 
 core ──X──► three
@@ -342,5 +412,7 @@ When adding a feature, ask:
 5. Can the core action be represented with plain serializable data?
 6. Does this abstraction solve a real current problem?
 7. Is the LLM (if present) proposing an action, or directly controlling implementation details?
+8. Am I forcing a cube/voxel representation because of rendering convenience rather than gameplay meaning?
+9. Could another camera mode be added without changing the player's movement rules?
 
 If those answers remain clean, the project should be able to grow without Three.js becoming the de facto game engine/domain model.

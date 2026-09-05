@@ -20,7 +20,7 @@ export function createUI(renderer: THREE.WebGLRenderer): UIController {
     textShadow: '0 2px 18px rgba(0,0,0,0.45)', background: 'rgba(10,20,34,0.34)',
     cursor: 'pointer', zIndex: '20'
   });
-  overlay.innerHTML = '<div>Click to explore</div><span>WASD move · Mouse look · Space jump · Shift sprint · E interact · ESC release</span>';
+  overlay.innerHTML = '<div>Click to explore</div><span>WASD move · Mouse look · Space jump · Shift sprint · E interact · V view · ESC release</span>';
 
   const hint = overlay.querySelector<HTMLSpanElement>('span');
   if (hint) {

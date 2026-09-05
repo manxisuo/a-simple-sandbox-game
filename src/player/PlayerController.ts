@@ -2,8 +2,6 @@ import * as THREE from 'three';
 import type { Axis, HeightSampler, PlayerConfig } from '../types';
 
 interface PlayerControllerOptions {
-  camera: THREE.PerspectiveCamera;
-  renderer: THREE.WebGLRenderer;
   colliders: THREE.Box3[];
   getGroundHeight: HeightSampler;
   config: PlayerConfig;
@@ -12,38 +10,30 @@ interface PlayerControllerOptions {
 export class PlayerController {
   readonly position: THREE.Vector3;
   readonly velocity = new THREE.Vector3();
+  facingYaw = 0;
 
-  private readonly camera: THREE.PerspectiveCamera;
-  private readonly renderer: THREE.WebGLRenderer;
   private readonly colliders: THREE.Box3[];
   private readonly getGroundHeight: HeightSampler;
   private readonly config: PlayerConfig;
   private readonly keys = new Set<string>();
 
-  private yaw = 0;
-  private pitch = 0;
+  private viewYaw = 0;
   private grounded = false;
 
-  constructor({ camera, renderer, colliders, getGroundHeight, config }: PlayerControllerOptions) {
-    this.camera = camera;
-    this.renderer = renderer;
+  constructor({ colliders, getGroundHeight, config }: PlayerControllerOptions) {
     this.colliders = colliders;
     this.getGroundHeight = getGroundHeight;
     this.config = config;
     this.position = new THREE.Vector3(0, getGroundHeight(0, 0) + config.height, 0);
 
     this.bindEvents();
-    this.updateCamera();
+  }
+
+  setViewYaw(yaw: number): void {
+    this.viewYaw = yaw;
   }
 
   private bindEvents(): void {
-    document.addEventListener('mousemove', event => {
-      if (document.pointerLockElement !== this.renderer.domElement) return;
-      this.yaw -= event.movementX * this.config.lookSensitivity;
-      this.pitch -= event.movementY * this.config.lookSensitivity;
-      this.pitch = THREE.MathUtils.clamp(this.pitch, -Math.PI / 2 + 0.02, Math.PI / 2 - 0.02);
-    });
-
     document.addEventListener('keydown', event => {
       this.keys.add(event.code);
       if (event.code === 'Space' && this.grounded) {
@@ -95,13 +85,14 @@ export class PlayerController {
   update(delta: number): void {
     const forwardInput = (this.keys.has('KeyW') ? 1 : 0) - (this.keys.has('KeyS') ? 1 : 0);
     const rightInput = (this.keys.has('KeyD') ? 1 : 0) - (this.keys.has('KeyA') ? 1 : 0);
-    const forward = new THREE.Vector3(-Math.sin(this.yaw), 0, -Math.cos(this.yaw));
-    const right = new THREE.Vector3(Math.cos(this.yaw), 0, -Math.sin(this.yaw));
+    const forward = new THREE.Vector3(-Math.sin(this.viewYaw), 0, -Math.cos(this.viewYaw));
+    const right = new THREE.Vector3(Math.cos(this.viewYaw), 0, -Math.sin(this.viewYaw));
     const wish = new THREE.Vector3()
       .addScaledVector(forward, forwardInput)
       .addScaledVector(right, rightInput);
 
     if (wish.lengthSq() > 1) wish.normalize();
+    if (wish.lengthSq() > 0.0001) this.facingYaw = Math.atan2(-wish.x, -wish.z);
 
     const sprinting = this.keys.has('ShiftLeft') || this.keys.has('ShiftRight');
     const speed = this.config.moveSpeed * (sprinting ? this.config.sprintMultiplier : 1);
@@ -111,12 +102,5 @@ export class PlayerController {
     this.moveAxis('z', wish.z * horizontalStep);
     this.velocity.y -= this.config.gravity * delta;
     this.moveAxis('y', this.velocity.y * delta);
-    this.updateCamera();
-  }
-
-  private updateCamera(): void {
-    this.camera.position.copy(this.position);
-    this.camera.rotation.order = 'YXZ';
-    this.camera.rotation.set(this.pitch, this.yaw, 0);
   }
 }
