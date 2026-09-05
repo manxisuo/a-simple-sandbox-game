@@ -1,5 +1,5 @@
 export type EntityId = string;
-export type EntityKind = 'creature' | 'relic' | 'flora' | 'device';
+export type EntityKind = 'creature' | 'relic' | 'flora' | 'device' | 'anomaly';
 export type EntityScalar = string | number | boolean;
 
 export interface Vec3 {
