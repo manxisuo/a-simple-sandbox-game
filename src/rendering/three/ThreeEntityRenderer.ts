@@ -65,12 +65,112 @@ export class ThreeEntityRenderer {
 
   private createView(snapshot: EntitySnapshot): EntityView {
     switch (snapshot.id) {
+      case 'companion-origin': return this.createCompanionView();
       case 'memory-stone-origin': return this.createMemoryStoneView();
       case 'glow-bloom-origin': return this.createGlowBloomView();
       case 'whisperling-origin': return this.createWhisperlingView();
       case 'resonance-spire-origin': return this.createResonanceSpireView();
       default: return this.createFallbackView();
     }
+  }
+
+  private createCompanionView(): EntityView {
+    const root = new THREE.Group();
+    const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0xc9894a, roughness: 0.84 });
+    const creamMaterial = new THREE.MeshStandardMaterial({ color: 0xf1dfba, roughness: 0.9 });
+    const darkMaterial = new THREE.MeshStandardMaterial({ color: 0x3a332f, roughness: 0.92 });
+
+    const body = new THREE.Mesh(new THREE.SphereGeometry(0.48, 12, 9), bodyMaterial);
+    body.scale.set(1.35, 0.78, 1.65);
+    body.position.y = 0.53;
+    body.castShadow = true;
+
+    const chest = new THREE.Mesh(new THREE.SphereGeometry(0.31, 10, 8), creamMaterial);
+    chest.scale.set(0.9, 1.1, 0.7);
+    chest.position.set(0, 0.57, -0.48);
+
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.34, 11, 8), bodyMaterial);
+    head.scale.set(0.95, 0.9, 1.08);
+    head.position.set(0, 0.79, -0.72);
+    head.castShadow = true;
+
+    const muzzle = new THREE.Mesh(new THREE.SphereGeometry(0.18, 10, 7), creamMaterial);
+    muzzle.scale.set(0.9, 0.72, 1.1);
+    muzzle.position.set(0, 0.71, -1.0);
+
+    const earGeometry = new THREE.ConeGeometry(0.14, 0.38, 6);
+    for (const side of [-1, 1]) {
+      const ear = new THREE.Mesh(earGeometry, bodyMaterial);
+      ear.position.set(side * 0.21, 1.15, -0.74);
+      ear.rotation.z = side * -0.12;
+      root.add(ear);
+    }
+
+    const eyeMaterial = new THREE.MeshBasicMaterial({ color: 0x16191b });
+    for (const side of [-1, 1]) {
+      const eye = new THREE.Mesh(new THREE.SphereGeometry(0.042, 7, 5), eyeMaterial);
+      eye.position.set(side * 0.12, 0.84, -1.01);
+      root.add(eye);
+    }
+
+    const nose = new THREE.Mesh(new THREE.IcosahedronGeometry(0.07, 0), darkMaterial);
+    nose.position.set(0, 0.72, -1.18);
+
+    const legGeometry = new THREE.CylinderGeometry(0.075, 0.085, 0.42, 7);
+    for (const x of [-0.25, 0.25]) {
+      for (const z of [-0.27, 0.28]) {
+        const leg = new THREE.Mesh(legGeometry, darkMaterial);
+        leg.position.set(x, 0.22, z);
+        leg.castShadow = true;
+        root.add(leg);
+      }
+    }
+
+    const tailPivot = new THREE.Group();
+    tailPivot.position.set(0, 0.62, 0.73);
+    tailPivot.rotation.x = -0.42;
+    const tail = new THREE.Mesh(new THREE.ConeGeometry(0.21, 0.98, 8), bodyMaterial);
+    tail.rotation.x = Math.PI / 2;
+    tail.position.z = 0.46;
+    tail.castShadow = true;
+    const tailTip = new THREE.Mesh(new THREE.ConeGeometry(0.14, 0.34, 8), creamMaterial);
+    tailTip.rotation.x = Math.PI / 2;
+    tailTip.position.z = 0.9;
+    tailPivot.add(tail, tailTip);
+
+    root.add(body, chest, head, muzzle, nose, tailPivot);
+
+    return {
+      root,
+      sync: (snapshot, time, delta) => {
+        this.syncTransform(root, snapshot);
+
+        // The companion model is authored facing local -Z while entity rotation uses +Z as forward.
+        // Rotate only the presentation by 180° so semantic movement/facing stays renderer-independent.
+        root.rotation.y += Math.PI;
+
+        // Companion semantic Y is a body-height anchor. The mesh itself is authored from a ground-level
+        // local origin, so compensate here to put the feet on the sampled terrain instead of hovering.
+        root.position.y -= 0.46;
+
+        const activity = String(snapshot.state.activity ?? 'wandering');
+        const mood = String(snapshot.state.mood ?? 'content');
+        const moving = !['resting', 'sniffing'].includes(activity);
+        const bobSpeed = activity === 'bounding' ? 9 : activity === 'following' ? 6.5 : 4.2;
+        const bobAmount = activity === 'bounding' ? 0.1 : moving ? 0.045 : 0.012;
+        // Keep locomotion bounce above the ground baseline so feet do not oscillate through the terrain.
+        root.position.y += (Math.sin(time * bobSpeed) + 1) * 0.5 * bobAmount;
+
+        const wagSpeed = mood === 'happy' ? 11 : activity === 'bounding' ? 8 : 4.5;
+        const wagAmount = mood === 'happy' ? 0.58 : 0.34;
+        tailPivot.rotation.y = Math.sin(time * wagSpeed) * wagAmount;
+        tailPivot.rotation.x = -0.42 + (activity === 'sniffing' ? 0.35 : 0);
+
+        const targetScale = activity === 'resting' ? 0.94 : 1;
+        const smoothing = Math.min(1, delta * 8);
+        root.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), smoothing);
+      }
+    };
   }
 
   private createMemoryStoneView(): EntityView {

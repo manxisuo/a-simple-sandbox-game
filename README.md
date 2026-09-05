@@ -17,6 +17,7 @@ https://manxisuo.github.io/a-simple-sandbox-game/
 - first-person movement, jumping, sprinting, pointer-lock mouse look
 - switchable first-person / third-person camera
 - simple third-person player avatar
+- a persistent companion that stays near the player without using a rigid follow offset
 - deterministic infinite chunk streaming
 - seamless procedural height-field terrain with more varied, steeper hills
 - day/night cycle, atmosphere, clouds, fireflies, campfire lighting
@@ -31,6 +32,7 @@ https://manxisuo.github.io/a-simple-sandbox-game/
 
 The current entity experiment includes examples such as:
 
+- **Companion** — stays bonded to the player, wanders within a loose moving radius, catches up when separated, occasionally stops to sniff/rest, and can be petted
 - **Memory Stone** — remembers repeated player interactions
 - **Glow Bloom** — responds to interaction, resonance, and the day/night cycle
 - **Whisperling** — wanders, flees, can become curious, and reacts to other entities

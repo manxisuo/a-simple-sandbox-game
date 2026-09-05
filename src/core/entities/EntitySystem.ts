@@ -6,6 +6,7 @@ interface CoreEntity extends EntitySnapshot {
   target?: Vec3;
   retargetIn?: number;
   pulseUntil?: number;
+  idleUntil?: number;
 }
 
 interface EntitySystemOptions {
@@ -54,6 +55,15 @@ export class EntitySystem {
     const entity = this.entities.get(id);
     if (!entity) return;
 
+    if (id === 'companion-origin') {
+      const affection = Number(entity.state.affection ?? 0) + 1;
+      entity.state.affection = affection;
+      entity.state.mood = 'happy';
+      entity.idleUntil = time + 1.8;
+      this.emit({ type: 'companion.petted', sourceId: id, time, data: { affection } });
+      return;
+    }
+
     if (id === 'memory-stone-origin') {
       const touches = Number(entity.state.touches ?? 0) + 1;
       entity.state.touches = touches;
@@ -101,6 +111,7 @@ export class EntitySystem {
 
     this.updateBloom(context);
     this.updateWhisperling(context);
+    this.updateCompanion(context);
   }
 
   private seedEntities(): void {
@@ -108,6 +119,19 @@ export class EntitySystem {
       x,
       y: this.getGroundHeight(x, z) + offsetY,
       z
+    });
+
+    const companionStart = at(2.8, 2.2, 0.46);
+    this.entities.set('companion-origin', {
+      id: 'companion-origin',
+      kind: 'creature',
+      position: cloneVec3(companionStart),
+      rotationY: Math.PI,
+      interactionLabel: 'pet your companion',
+      state: { mood: 'content', activity: 'wandering', affection: 0, bonded: true },
+      target: cloneVec3(companionStart),
+      retargetIn: 0.5,
+      idleUntil: 0
     });
 
     this.entities.set('memory-stone-origin', {
@@ -220,6 +244,91 @@ export class EntitySystem {
       creature.rotationY = Math.atan2(dx, dz);
     }
     creature.position.y = this.getGroundHeight(creature.position.x, creature.position.z) + 0.85;
+  }
+
+  private updateCompanion(context: EntityUpdateContext): void {
+    const companion = this.entities.get('companion-origin');
+    if (!companion || !companion.target) return;
+
+    const playerDistance = distance2D(companion.position, context.playerPosition);
+
+    // If the player gets extremely far away (for example after terrain/settings reloads or future teleportation),
+    // reunite the companion rather than leaving it stranded several chunks behind.
+    if (playerDistance > 42) {
+      const angle = this.rand() * Math.PI * 2;
+      companion.position.x = context.playerPosition.x + Math.cos(angle) * 3.5;
+      companion.position.z = context.playerPosition.z + Math.sin(angle) * 3.5;
+      companion.position.y = this.getGroundHeight(companion.position.x, companion.position.z) + 0.46;
+      companion.target = cloneVec3(companion.position);
+      companion.state.activity = 'rejoined';
+      companion.retargetIn = 0.8;
+      return;
+    }
+
+    const resting = (companion.idleUntil ?? 0) > context.time && playerDistance < 5;
+    if (resting) {
+      companion.state.activity = 'resting';
+      companion.state.mood = 'happy';
+      companion.position.y = this.getGroundHeight(companion.position.x, companion.position.z) + 0.46;
+      return;
+    }
+
+    const catchUp = playerDistance > 8.5;
+    const close = playerDistance < 1.8;
+    companion.retargetIn = (companion.retargetIn ?? 0) - context.delta;
+
+    if (catchUp) {
+      // Aim near the player rather than at the exact player position so catching up still feels organic.
+      const angle = Math.atan2(companion.position.z - context.playerPosition.z, companion.position.x - context.playerPosition.x);
+      companion.target = {
+        x: context.playerPosition.x + Math.cos(angle) * 2.8,
+        y: companion.position.y,
+        z: context.playerPosition.z + Math.sin(angle) * 2.8
+      };
+      companion.state.activity = playerDistance > 14 ? 'bounding' : 'following';
+      companion.state.mood = 'focused';
+      companion.retargetIn = 0.35;
+    } else if (close) {
+      const dx = companion.position.x - context.playerPosition.x;
+      const dz = companion.position.z - context.playerPosition.z;
+      const length = Math.hypot(dx, dz) || 1;
+      companion.target = {
+        x: context.playerPosition.x + (dx / length) * 3.2,
+        y: companion.position.y,
+        z: context.playerPosition.z + (dz / length) * 3.2
+      };
+      companion.state.activity = 'making-room';
+      companion.state.mood = 'content';
+      companion.retargetIn = 0.9;
+    } else if ((companion.retargetIn ?? 0) <= 0) {
+      // Wander inside a loose moving ring around the player. This is what prevents the companion from
+      // feeling like a rigid object attached to a fixed offset.
+      const angle = this.rand() * Math.PI * 2;
+      const radius = 2.4 + this.rand() * 3.2;
+      companion.target = {
+        x: context.playerPosition.x + Math.cos(angle) * radius,
+        y: companion.position.y,
+        z: context.playerPosition.z + Math.sin(angle) * radius
+      };
+      companion.state.activity = this.rand() < 0.22 ? 'sniffing' : 'wandering';
+      companion.state.mood = 'content';
+      companion.retargetIn = 1.6 + this.rand() * 3.2;
+
+      if (companion.state.activity === 'sniffing') companion.idleUntil = context.time + 0.7 + this.rand() * 1.2;
+    }
+
+    const dx = companion.target.x - companion.position.x;
+    const dz = companion.target.z - companion.position.z;
+    const distance = Math.hypot(dx, dz);
+    if (distance > 0.1) {
+      const speed = playerDistance > 14 ? 12.5 : catchUp ? 6.8 : 1.55;
+      const step = Math.min(distance, speed * context.delta);
+      companion.position.x += (dx / distance) * step;
+      companion.position.z += (dz / distance) * step;
+      companion.rotationY = Math.atan2(dx, dz);
+    }
+
+    companion.position.y = this.getGroundHeight(companion.position.x, companion.position.z) + 0.46;
   }
 
   private emit(event: EntityEvent): void {
