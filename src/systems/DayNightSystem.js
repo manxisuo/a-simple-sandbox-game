@@ -1,10 +1,11 @@
 import * as THREE from 'three';
 
 export class DayNightSystem {
-  constructor({ scene, renderer, world, ui, collectibles, atmosphere, config }) {
+  constructor({ scene, renderer, world, player, ui, collectibles, atmosphere, config }) {
     this.scene = scene;
     this.renderer = renderer;
     this.world = world;
+    this.player = player;
     this.ui = ui;
     this.collectibles = collectibles;
     this.atmosphere = atmosphere;
@@ -30,7 +31,6 @@ export class DayNightSystem {
     scene.add(this.sunLight, this.sunLight.target);
 
     this.moonLight = new THREE.DirectionalLight(0x8fb7ff, 0);
-    this.moonLight.position.set(-24, 36, -16);
     scene.add(this.moonLight);
   }
 
@@ -47,27 +47,33 @@ export class DayNightSystem {
     this.scene.background.copy(sky);
     this.scene.fog.color.copy(sky);
 
-    this.sunLight.position.set(Math.cos(angle) * 48, Math.max(-8, sunHeight * 48), Math.sin(angle) * 38);
+    const px = this.player.position.x;
+    const pz = this.player.position.z;
+    this.sunLight.position.set(px + Math.cos(angle) * 48, Math.max(-8, sunHeight * 48), pz + Math.sin(angle) * 38);
+    this.sunLight.target.position.set(px, 0, pz);
     this.sunLight.intensity = 0.12 + daylight * 2.25;
     this.sunLight.color.set(daylight < 0.45 ? 0xff9c72 : 0xffffff);
+
+    this.moonLight.position.set(px - 24, 36, pz - 16);
     this.hemisphereLight.intensity = 0.18 + daylight * 1.55;
     this.moonLight.intensity = (1 - daylight) * 0.7;
 
     this.world.fireLight.intensity = 1.4 + (1 - daylight) * 2.7;
     this.world.cloudMaterial.opacity = 0.24 + daylight * 0.6;
-    this.world.groundMaterial.color.set(0x173c2b).lerp(new THREE.Color(0x35a853), daylight);
-    this.world.grid.material.opacity = 0.1 + daylight * 0.24;
+    this.world.setDaylight(daylight);
     this.renderer.toneMappingExposure = 0.62 + daylight * 0.48;
     this.atmosphere.setNightAmount(1 - daylight);
 
     const hours = Math.floor(cycle * 24);
     const minutes = Math.floor((cycle * 24 - hours) * 60);
     const phase = daylight > 0.68 ? 'Day' : daylight > 0.22 ? 'Twilight' : 'Night';
+    const chunk = this.world.chunkManager.currentChunk;
 
     this.ui.setHud(
       `<strong>${phase}</strong> · ${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}` +
       `<br>Crystals: <strong>${this.collectibles.collected}/${this.collectibles.total}</strong>` +
-      '<br><span style="opacity:.72">Shift to sprint · explore the glowing markers</span>'
+      `<br>Chunk: <strong>${chunk.x}, ${chunk.z}</strong> · loaded ${this.world.chunkManager.loadedChunkCount}` +
+      '<br><span style="opacity:.72">Shift to sprint · the world streams as you move</span>'
     );
   }
 }
