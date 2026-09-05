@@ -150,8 +150,11 @@ export class WorldGenerator {
     crown.receiveShadow = true;
 
     group.add(trunk, crown);
+
+    // Only the trunk blocks movement. Using the crown's full Box3 made a large invisible
+    // rectangular collision volume around the foliage, which could wedge the player between
+    // a tree and another nearby obstacle even when there was visible space to move through.
     colliders.push({ mesh: trunk, box: new THREE.Box3() });
-    colliders.push({ mesh: crown, box: new THREE.Box3() });
   }
 
   private createRock(
