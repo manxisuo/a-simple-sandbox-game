@@ -203,6 +203,9 @@ export class Game {
 
   private handleEntityEvent(event: EntityEvent): void {
     switch (event.type) {
+      case 'companion.petted':
+        this.ui.showMessage(`Your companion leans into the attention. Bond: ${String(event.data?.affection ?? 1)}.`, 2.6);
+        break;
       case 'memory.touched':
         this.ui.showMessage(`The stone remembers this touch. Memory count: ${String(event.data?.touches ?? 1)}.`, 3.2);
         break;
