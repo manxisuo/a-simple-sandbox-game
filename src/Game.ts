@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { GAME_CONFIG } from './config';
+import { EntitySystem } from './entities/EntitySystem';
 import { PlayerController } from './player/PlayerController';
 import { createWorld } from './world/createWorld';
 import { CollectibleSystem } from './systems/CollectibleSystem';
@@ -17,6 +18,7 @@ export class Game {
   private readonly ui: UIController;
   private readonly world: WorldRuntime;
   private readonly player: PlayerController;
+  private readonly entities: EntitySystem;
   private readonly collectibles: CollectibleSystem;
   private readonly atmosphere: AtmosphereSystem;
   private readonly dayNight: DayNightSystem;
@@ -48,6 +50,15 @@ export class Game {
       colliders: this.world.colliders,
       getGroundHeight: (x, z) => this.world.getHeight(x, z),
       config: GAME_CONFIG.player
+    });
+
+    this.entities = new EntitySystem({
+      scene: this.scene,
+      camera: this.camera,
+      playerPosition: this.player.position,
+      ui: this.ui,
+      rand: this.world.rand,
+      getGroundHeight: (x, z) => this.world.getHeight(x, z)
     });
 
     this.collectibles = new CollectibleSystem({
@@ -95,6 +106,7 @@ export class Game {
 
       this.player.update(delta);
       this.world.chunkManager.update(this.player.position);
+      this.entities.update(time, delta);
       this.collectibles.update(time, delta);
       this.dayNight.update(delta);
       this.atmosphere.update(time, delta);

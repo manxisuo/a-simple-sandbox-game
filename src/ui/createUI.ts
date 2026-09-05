@@ -20,7 +20,7 @@ export function createUI(renderer: THREE.WebGLRenderer): UIController {
     textShadow: '0 2px 18px rgba(0,0,0,0.45)', background: 'rgba(10,20,34,0.34)',
     cursor: 'pointer', zIndex: '20'
   });
-  overlay.innerHTML = '<div>Click to explore</div><span>WASD move · Mouse look · Space jump · Shift sprint · ESC release</span>';
+  overlay.innerHTML = '<div>Click to explore</div><span>WASD move · Mouse look · Space jump · Shift sprint · E interact · ESC release</span>';
 
   const hint = overlay.querySelector<HTMLSpanElement>('span');
   if (hint) {
@@ -33,6 +33,14 @@ export function createUI(renderer: THREE.WebGLRenderer): UIController {
     color: 'white', background: 'rgba(7,17,30,0.36)', border: '1px solid rgba(255,255,255,0.18)',
     borderRadius: '10px', backdropFilter: 'blur(6px)', fontFamily: uiFont, fontSize: '13px',
     lineHeight: '1.55', textShadow: '0 1px 5px rgba(0,0,0,0.4)', pointerEvents: 'none', zIndex: '9'
+  });
+
+  const interaction = createElement('div', {
+    position: 'fixed', left: '50%', top: '58%', transform: 'translateX(-50%)',
+    padding: '7px 11px', color: 'white', background: 'rgba(7,17,30,0.58)',
+    border: '1px solid rgba(255,255,255,0.2)', borderRadius: '8px', fontFamily: uiFont,
+    fontSize: '13px', fontWeight: '650', opacity: '0', transition: 'opacity 120ms ease',
+    pointerEvents: 'none', zIndex: '10'
   });
 
   const message = createElement('div', {
@@ -56,13 +64,14 @@ export function createUI(renderer: THREE.WebGLRenderer): UIController {
   });
   badge.textContent = 'Three.js + TypeScript · Sandbox';
 
-  document.body.append(overlay, hud, message, crosshair, badge);
+  document.body.append(overlay, hud, interaction, message, crosshair, badge);
 
   overlay.addEventListener('click', () => renderer.domElement.requestPointerLock());
   document.addEventListener('pointerlockchange', () => {
     const playing = document.pointerLockElement === renderer.domElement;
     overlay.style.display = playing ? 'none' : 'flex';
     crosshair.style.display = playing ? 'block' : 'none';
+    if (!playing) interaction.style.opacity = '0';
   });
 
   let messageTimer = 0;
@@ -70,6 +79,10 @@ export function createUI(renderer: THREE.WebGLRenderer): UIController {
   return {
     setHud(html: string): void {
       hud.innerHTML = html;
+    },
+    setInteractionPrompt(text: string | null): void {
+      interaction.textContent = text ?? '';
+      interaction.style.opacity = text && document.pointerLockElement === renderer.domElement ? '1' : '0';
     },
     showMessage(text: string, seconds = 2.2): void {
       message.textContent = text;

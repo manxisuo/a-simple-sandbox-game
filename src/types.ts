@@ -60,6 +60,7 @@ export interface ChunkCoordinate {
 
 export interface UIController {
   setHud(html: string): void;
+  setInteractionPrompt(text: string | null): void;
   showMessage(text: string, seconds?: number): void;
   update(delta: number): void;
 }
