@@ -34,7 +34,7 @@ export class Game {
       camera: this.camera,
       renderer: this.renderer,
       colliders: this.world.colliders,
-      config: { ...GAME_CONFIG.player, worldLimit: GAME_CONFIG.world.limit }
+      config: GAME_CONFIG.player
     });
 
     this.collectibles = new CollectibleSystem({
@@ -47,6 +47,7 @@ export class Game {
     this.atmosphere = new AtmosphereSystem({
       scene: this.scene,
       world: this.world,
+      player: this.player,
       rand: this.world.rand
     });
 
@@ -54,6 +55,7 @@ export class Game {
       scene: this.scene,
       renderer: this.renderer,
       world: this.world,
+      player: this.player,
       ui: this.ui,
       collectibles: this.collectibles,
       atmosphere: this.atmosphere,
@@ -78,6 +80,7 @@ export class Game {
       const time = this.clock.elapsedTime;
 
       this.player.update(delta);
+      this.world.chunkManager.update(this.player.position);
       this.collectibles.update(time, delta);
       this.dayNight.update(delta);
       this.atmosphere.update(time, delta);
