@@ -123,6 +123,7 @@ export class EntitySystem {
       });
     }
 
+    this.updateEchoField(context);
     this.updateBloom(context);
     this.updateWhisperling(context);
     this.updateCompanion(context);
@@ -196,6 +197,44 @@ export class EntitySystem {
       interactionLabel: 'send a resonance pulse',
       state: { pulses: 0, charged: false }
     });
+
+    this.entities.set('echo-field-origin', {
+      id: 'echo-field-origin',
+      kind: 'anomaly',
+      position: at(22, -16, 0.08),
+      rotationY: 0,
+      interactionLabel: '',
+      state: {
+        radius: 10,
+        active: true,
+        intensity: 1,
+        playerInside: false,
+        nightAmplified: false
+      }
+    });
+  }
+
+  private updateEchoField(context: EntityUpdateContext): void {
+    const field = this.entities.get('echo-field-origin');
+    if (!field) return;
+
+    const radius = Number(field.state.radius ?? 10);
+    const wasInside = Boolean(field.state.playerInside);
+    const inside = distance2D(field.position, context.playerPosition) <= radius;
+    const nightAmplified = context.daylight < 0.3;
+
+    field.state.playerInside = inside;
+    field.state.nightAmplified = nightAmplified;
+    field.state.intensity = 1 + (1 - context.daylight) * 0.8;
+
+    if (inside !== wasInside) {
+      this.emit({
+        type: inside ? 'anomaly.entered' : 'anomaly.exited',
+        sourceId: field.id,
+        time: context.time,
+        data: { radius, intensity: Number(field.state.intensity) }
+      });
+    }
   }
 
   private updateBloom(context: EntityUpdateContext): void {
@@ -274,6 +313,7 @@ export class EntitySystem {
     const spire = this.entities.get('resonance-spire-origin');
     const memory = this.entities.get('memory-stone-origin');
     const whisperling = this.entities.get('whisperling-origin');
+    const echoField = this.entities.get('echo-field-origin');
 
     const candidates: Array<{ entity: CoreEntity; weight: number }> = [];
     const add = (entity: CoreEntity | undefined, weight: number, maxDistance: number): void => {
@@ -283,6 +323,7 @@ export class EntitySystem {
     };
 
     if (bloom && Boolean(bloom.state.awake)) add(bloom, 5, 22);
+    if (echoField && Boolean(echoField.state.active)) add(echoField, 4.4, 30);
     if (spire && Boolean(spire.state.charged)) add(spire, 3.5, 20);
     if (memory && Number(memory.state.touches ?? 0) > 0) add(memory, 2.5, 20);
     if (whisperling && Boolean(whisperling.state.greeted)) add(whisperling, 2, 16);
@@ -295,6 +336,13 @@ export class EntitySystem {
       if (roll <= 0) return candidate.entity;
     }
     return candidates[candidates.length - 1]?.entity ?? null;
+  }
+
+  private companionStopDistance(entity: CoreEntity): number {
+    if (entity.id === 'resonance-spire-origin') return 5.6;
+    if (entity.id === 'echo-field-origin') return 6.4;
+    if (entity.id === 'glow-bloom-origin') return 1.8;
+    return 2.2;
   }
 
   private updateCompanion(context: EntityUpdateContext): void {
@@ -382,11 +430,14 @@ export class EntitySystem {
 
       if (interestActive && activeInterest) {
         const targetDistanceFromPlayer = distance2D(activeInterest.position, context.playerPosition);
-        if (targetDistanceFromPlayer <= 24) {
-          const stopDistance = activeInterest.id === 'resonance-spire-origin' ? 5.6 : activeInterest.id === 'glow-bloom-origin' ? 1.8 : 2.2;
-          companion.target = pointNear(context.playerPosition, activeInterest.position, stopDistance);
+        if (targetDistanceFromPlayer <= 30) {
+          companion.target = pointNear(context.playerPosition, activeInterest.position, this.companionStopDistance(activeInterest));
           companion.state.activity = targetDistanceFromPlayer > 8 ? 'leading' : 'investigating';
-          companion.state.mood = activeInterest.id === 'resonance-spire-origin' ? 'uneasy' : 'curious';
+          companion.state.mood = activeInterest.id === 'resonance-spire-origin'
+            ? 'uneasy'
+            : activeInterest.id === 'echo-field-origin'
+              ? 'alert-curious'
+              : 'curious';
           companion.state.interest = activeInterest.id;
         } else {
           companion.interestTargetId = undefined;
@@ -399,9 +450,13 @@ export class EntitySystem {
           companion.interestTargetId = interest.id;
           companion.interestUntil = context.time + 5 + this.rand() * 3;
           const targetDistanceFromPlayer = distance2D(interest.position, context.playerPosition);
-          companion.target = pointNear(context.playerPosition, interest.position, interest.id === 'resonance-spire-origin' ? 5.6 : 2);
+          companion.target = pointNear(context.playerPosition, interest.position, this.companionStopDistance(interest));
           companion.state.activity = targetDistanceFromPlayer > 8 ? 'leading' : 'investigating';
-          companion.state.mood = interest.id === 'resonance-spire-origin' ? 'uneasy' : 'curious';
+          companion.state.mood = interest.id === 'resonance-spire-origin'
+            ? 'uneasy'
+            : interest.id === 'echo-field-origin'
+              ? 'alert-curious'
+              : 'curious';
           companion.state.interest = interest.id;
           companion.retargetIn = 1.2;
 

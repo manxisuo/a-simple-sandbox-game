@@ -2,10 +2,11 @@ import * as THREE from 'three';
 import { CameraController } from './camera/CameraController';
 import { GAME_CONFIG } from './config';
 import { EntitySystem } from './core/entities/EntitySystem';
-import type { EntityEvent } from './core/entities/types';
+import type { EntityEvent, EntitySnapshot } from './core/entities/types';
 import { t } from './i18n';
 import { EntityInteractionController } from './input/EntityInteractionController';
 import { PlayerController } from './player/PlayerController';
+import { ThreeEchoFieldRenderer } from './rendering/three/ThreeEchoFieldRenderer';
 import { ThreeEntityRenderer } from './rendering/three/ThreeEntityRenderer';
 import { ThreePlayerAvatar } from './rendering/three/ThreePlayerAvatar';
 import {
@@ -37,6 +38,7 @@ export class Game {
   private readonly playerAvatar: ThreePlayerAvatar;
   private readonly entities: EntitySystem;
   private readonly entityRenderer: ThreeEntityRenderer;
+  private readonly echoFieldRenderer: ThreeEchoFieldRenderer;
   private readonly entityInteraction: EntityInteractionController;
   private readonly collectibles: CollectibleSystem;
   private readonly atmosphere: AtmosphereSystem;
@@ -97,6 +99,7 @@ export class Game {
       getGroundHeight: (x, z) => this.world.getHeight(x, z)
     });
     this.entityRenderer = new ThreeEntityRenderer(this.scene);
+    this.echoFieldRenderer = new ThreeEchoFieldRenderer(this.scene);
     this.entityInteraction = new EntityInteractionController({
       camera: this.camera,
       playerPosition: this.player.position,
@@ -188,9 +191,22 @@ export class Game {
       playerPosition: this.player.position,
       daylight: this.dayNight.daylight
     });
-    const initialEntities = this.entities.getSnapshots();
-    this.entityRenderer.sync(initialEntities, 0, 0);
-    this.entityInteraction.update(initialEntities);
+    this.syncEntities(0, 0);
+  }
+
+  private syncEntities(time: number, delta: number): void {
+    const snapshots = this.entities.getSnapshots();
+    const ordinary: EntitySnapshot[] = [];
+    let echoField: EntitySnapshot | undefined;
+
+    for (const snapshot of snapshots) {
+      if (snapshot.id === 'echo-field-origin') echoField = snapshot;
+      else ordinary.push(snapshot);
+    }
+
+    this.entityRenderer.sync(ordinary, time, delta);
+    this.echoFieldRenderer.update(echoField, time);
+    this.entityInteraction.update(ordinary);
   }
 
   private applyTimeSettings(): void {
@@ -223,10 +239,18 @@ export class Game {
             ? 'message.companionLeadsSpire'
             : interest === 'memory-stone-origin'
               ? 'message.companionLeadsMemory'
-              : 'message.companionLeadsWhisperling';
+              : interest === 'echo-field-origin'
+                ? 'message.companionLeadsAnomaly'
+                : 'message.companionLeadsWhisperling';
         this.ui.showMessage(t(locale, key), 3.4);
         break;
       }
+      case 'anomaly.entered':
+        this.ui.showMessage(t(locale, 'message.anomalyEntered'), 4.2);
+        break;
+      case 'anomaly.exited':
+        this.ui.showMessage(t(locale, 'message.anomalyExited'), 2.8);
+        break;
       case 'memory.touched':
         this.ui.showMessage(t(locale, 'message.memoryTouched', { touches: Number(event.data?.touches ?? 1) }), 3.2);
         break;
@@ -271,9 +295,7 @@ export class Game {
         playerPosition: this.player.position,
         daylight: this.dayNight.daylight
       });
-      const entitySnapshots = this.entities.getSnapshots();
-      this.entityRenderer.sync(entitySnapshots, time, delta);
-      this.entityInteraction.update(entitySnapshots);
+      this.syncEntities(time, delta);
 
       this.atmosphere.update(time, delta);
       this.ui.update(delta);
