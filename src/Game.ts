@@ -4,12 +4,14 @@ import { CameraController } from './camera/CameraController';
 import { GAME_CONFIG } from './config';
 import { EntitySystem } from './core/entities/EntitySystem';
 import type { EntityEvent, EntitySnapshot } from './core/entities/types';
+import { WeatherSystem, type WeatherEvent } from './core/weather/WeatherSystem';
 import { t } from './i18n';
 import { EntityInteractionController } from './input/EntityInteractionController';
 import { PlayerController } from './player/PlayerController';
 import { ThreeEchoFieldRenderer } from './rendering/three/ThreeEchoFieldRenderer';
 import { ThreeEntityRenderer } from './rendering/three/ThreeEntityRenderer';
 import { ThreePlayerAvatar } from './rendering/three/ThreePlayerAvatar';
+import { ThreeWeatherRenderer } from './rendering/three/ThreeWeatherRenderer';
 import {
   createRuntimeWorldConfig,
   loadRuntimeSettings,
@@ -39,6 +41,8 @@ export class Game {
   private readonly player: PlayerController;
   private readonly playerAvatar: ThreePlayerAvatar;
   private readonly entities: EntitySystem;
+  private readonly weather: WeatherSystem;
+  private readonly weatherRenderer: ThreeWeatherRenderer;
   private readonly entityRenderer: ThreeEntityRenderer;
   private readonly echoFieldRenderer: ThreeEchoFieldRenderer;
   private readonly entityInteraction: EntityInteractionController;
@@ -101,6 +105,10 @@ export class Game {
       rand: this.world.rand,
       getGroundHeight: (x, z) => this.world.getHeight(x, z)
     });
+    this.weather = new WeatherSystem(this.world.rand);
+    this.weatherRenderer = new ThreeWeatherRenderer(this.scene);
+    this.weather.onEvent(event => this.handleWeatherEvent(event));
+
     this.entityRenderer = new ThreeEntityRenderer(this.scene);
     this.echoFieldRenderer = new ThreeEchoFieldRenderer(this.scene);
     this.entityInteraction = new EntityInteractionController({
@@ -122,12 +130,7 @@ export class Game {
       getGroundHeight: (x, z) => this.world.getHeight(x, z)
     });
 
-    this.atmosphere = new AtmosphereSystem({
-      scene: this.scene,
-      world: this.world,
-      player: this.player,
-      rand: this.world.rand
-    });
+    this.atmosphere = new AtmosphereSystem({ scene: this.scene, world: this.world, player: this.player, rand: this.world.rand });
 
     this.dayNight = new DayNightSystem({
       scene: this.scene,
@@ -137,10 +140,7 @@ export class Game {
       ui: this.ui,
       collectibles: this.collectibles,
       atmosphere: this.atmosphere,
-      config: {
-        cycleSeconds: this.settings.time.cycleSeconds,
-        initialProgress: this.settings.time.timeOfDay
-      },
+      config: { cycleSeconds: this.settings.time.cycleSeconds, initialProgress: this.settings.time.timeOfDay },
       getLocale: () => this.settings.language
     });
     this.applyTimeSettings();
@@ -148,16 +148,8 @@ export class Game {
 
     createSettingsPanel({
       settings: this.settings,
-      onLanguageChanged: settings => {
-        this.settings = settings;
-        saveRuntimeSettings(this.settings);
-        window.location.reload();
-      },
-      onTimeChanged: settings => {
-        this.settings = settings;
-        this.applyTimeSettings();
-        saveRuntimeSettings(this.settings);
-      },
+      onLanguageChanged: settings => { this.settings = settings; saveRuntimeSettings(this.settings); window.location.reload(); },
+      onTimeChanged: settings => { this.settings = settings; this.applyTimeSettings(); saveRuntimeSettings(this.settings); },
       onCameraChanged: settings => {
         this.settings = settings;
         this.cameraController.setThirdPersonDistance(settings.camera.thirdPersonDistance);
@@ -174,31 +166,14 @@ export class Game {
         this.dayNight.setCelestialVisibility(settings.visual.showSun, settings.visual.showMoon);
         saveRuntimeSettings(this.settings);
       },
-      onAudioChanged: settings => {
-        this.settings = settings;
-        this.audio.setSettings(settings.audio);
-        saveRuntimeSettings(this.settings);
-      },
-      onApplyTerrain: settings => {
-        this.settings = settings;
-        saveRuntimeSettings(this.settings);
-        window.location.reload();
-      },
-      onReset: () => {
-        const defaults = resetRuntimeSettings();
-        window.location.reload();
-        return defaults;
-      }
+      onAudioChanged: settings => { this.settings = settings; this.audio.setSettings(settings.audio); saveRuntimeSettings(this.settings); },
+      onApplyTerrain: settings => { this.settings = settings; saveRuntimeSettings(this.settings); window.location.reload(); },
+      onReset: () => { const defaults = resetRuntimeSettings(); window.location.reload(); return defaults; }
     });
 
     this.bindWindowEvents();
     this.dayNight.update(0);
-    this.entities.update({
-      time: 0,
-      delta: 0,
-      playerPosition: this.player.position,
-      daylight: this.dayNight.daylight
-    });
+    this.entities.update({ time: 0, delta: 0, playerPosition: this.player.position, daylight: this.dayNight.daylight });
     this.syncEntities(0, 0);
   }
 
@@ -206,20 +181,13 @@ export class Game {
     const snapshots = this.entities.getSnapshots();
     const ordinary: EntitySnapshot[] = [];
     let echoField: EntitySnapshot | undefined;
-
     for (const snapshot of snapshots) {
-      if (snapshot.id === 'echo-field-origin') echoField = snapshot;
-      else ordinary.push(snapshot);
+      if (snapshot.id === 'echo-field-origin') echoField = snapshot; else ordinary.push(snapshot);
     }
-
     this.entityRenderer.sync(ordinary, time, delta);
     this.echoFieldRenderer.update(echoField, time);
     this.entityInteraction.update(ordinary);
-    this.audio.setWorldState({
-      daylight: this.dayNight.daylight,
-      anomalyInside: Boolean(echoField?.state.playerInside),
-      anomalyIntensity: Number(echoField?.state.intensity ?? 1)
-    });
+    this.audio.setWorldState({ daylight: this.dayNight.daylight, anomalyInside: Boolean(echoField?.state.playerInside), anomalyIntensity: Number(echoField?.state.intensity ?? 1) });
   }
 
   private applyTimeSettings(): void {
@@ -238,56 +206,43 @@ export class Game {
     });
   }
 
+  private handleWeatherEvent(event: WeatherEvent): void {
+    this.audio.handleEvent(event);
+    if (event.type === 'weather.thunder') {
+      this.weatherRenderer.triggerLightning(event.time);
+      return;
+    }
+    const key = event.weather === 'clear' ? 'message.weatherClear'
+      : event.weather === 'drizzle' ? 'message.weatherDrizzle'
+        : event.weather === 'rain' ? 'message.weatherRain'
+          : event.weather === 'storm' ? 'message.weatherStorm'
+            : 'message.weatherMist';
+    this.ui.showMessage(t(this.settings.language, key), 3.2);
+  }
+
   private handleEntityEvent(event: EntityEvent): void {
     this.audio.handleEvent(event);
     const locale = this.settings.language;
     switch (event.type) {
-      case 'companion.petted':
-        this.ui.showMessage(t(locale, 'message.companionPetted', { affection: Number(event.data?.affection ?? 1) }), 2.6);
-        break;
+      case 'companion.petted': this.ui.showMessage(t(locale, 'message.companionPetted', { affection: Number(event.data?.affection ?? 1) }), 2.6); break;
       case 'companion.leads': {
         const interest = String(event.data?.interest ?? event.targetId ?? '');
-        const key = interest === 'glow-bloom-origin'
-          ? 'message.companionLeadsBloom'
-          : interest === 'resonance-spire-origin'
-            ? 'message.companionLeadsSpire'
-            : interest === 'memory-stone-origin'
-              ? 'message.companionLeadsMemory'
-              : interest === 'echo-field-origin'
-                ? 'message.companionLeadsAnomaly'
-                : 'message.companionLeadsWhisperling';
-        this.ui.showMessage(t(locale, key), 3.4);
-        break;
+        const key = interest === 'glow-bloom-origin' ? 'message.companionLeadsBloom'
+          : interest === 'resonance-spire-origin' ? 'message.companionLeadsSpire'
+            : interest === 'memory-stone-origin' ? 'message.companionLeadsMemory'
+              : interest === 'echo-field-origin' ? 'message.companionLeadsAnomaly' : 'message.companionLeadsWhisperling';
+        this.ui.showMessage(t(locale, key), 3.4); break;
       }
-      case 'anomaly.entered':
-        this.ui.showMessage(t(locale, 'message.anomalyEntered'), 4.2);
-        break;
-      case 'anomaly.exited':
-        this.ui.showMessage(t(locale, 'message.anomalyExited'), 2.8);
-        break;
-      case 'memory.touched':
-        this.ui.showMessage(t(locale, 'message.memoryTouched', { touches: Number(event.data?.touches ?? 1) }), 3.2);
-        break;
-      case 'memory.resonance':
-        this.ui.showMessage(t(locale, 'message.memoryResonance'), 4.2);
-        break;
-      case 'resonance.pulse':
-        this.ui.showMessage(t(locale, 'message.resonancePulse'), 4.0);
-        break;
-      case 'bloom.awakened':
-        this.ui.showMessage(t(locale, 'message.bloomAwakened'), 3.5);
-        break;
-      case 'bloom.slept':
-        this.ui.showMessage(t(locale, 'message.bloomSlept'), 2.4);
-        break;
-      case 'creature.greeted':
-        this.ui.showMessage(t(locale, 'message.creatureGreeted'), 3.8);
-        break;
-      case 'world.night-started':
-        this.ui.showMessage(t(locale, 'message.nightStarted'), 3.3);
-        break;
-      default:
-        break;
+      case 'anomaly.entered': this.ui.showMessage(t(locale, 'message.anomalyEntered'), 4.2); break;
+      case 'anomaly.exited': this.ui.showMessage(t(locale, 'message.anomalyExited'), 2.8); break;
+      case 'memory.touched': this.ui.showMessage(t(locale, 'message.memoryTouched', { touches: Number(event.data?.touches ?? 1) }), 3.2); break;
+      case 'memory.resonance': this.ui.showMessage(t(locale, 'message.memoryResonance'), 4.2); break;
+      case 'resonance.pulse': this.ui.showMessage(t(locale, 'message.resonancePulse'), 4.0); break;
+      case 'bloom.awakened': this.ui.showMessage(t(locale, 'message.bloomAwakened'), 3.5); break;
+      case 'bloom.slept': this.ui.showMessage(t(locale, 'message.bloomSlept'), 2.4); break;
+      case 'creature.greeted': this.ui.showMessage(t(locale, 'message.creatureGreeted'), 3.8); break;
+      case 'world.night-started': this.ui.showMessage(t(locale, 'message.nightStarted'), 3.3); break;
+      default: break;
     }
   }
 
@@ -295,29 +250,23 @@ export class Game {
     const frame = (): void => {
       const delta = Math.min(this.clock.getDelta(), 0.05);
       const time = this.clock.elapsedTime;
-
       this.player.update(delta);
       this.playerAvatar.update(delta);
       this.cameraController.update(delta);
       this.world.chunkManager.update(this.player.position);
       this.collectibles.update(time, delta);
       this.dayNight.update(delta);
-
-      this.entities.update({
-        time,
-        delta,
-        playerPosition: this.player.position,
-        daylight: this.dayNight.daylight
-      });
+      this.weather.update(time, delta);
+      const weatherSnapshot = this.weather.getSnapshot();
+      this.weatherRenderer.update(weatherSnapshot, this.player.position, time, delta);
+      this.audio.setWeatherState(weatherSnapshot);
+      this.entities.update({ time, delta, playerPosition: this.player.position, daylight: this.dayNight.daylight });
       this.syncEntities(time, delta);
-
       this.atmosphere.update(time, delta);
       this.ui.update(delta);
-
       this.renderer.render(this.scene, this.camera);
       requestAnimationFrame(frame);
     };
-
     frame();
   }
 }
