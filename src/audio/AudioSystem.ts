@@ -126,38 +126,61 @@ export class AudioSystem {
 
   private createWindLayer(context: AudioContext): void {
     if (!this.windGain) return;
-    const buffer = context.createBuffer(1, context.sampleRate * 4, context.sampleRate);
+
+    // A quiet, slowly changing air bed rather than a constant white-noise "gale".
+    const buffer = context.createBuffer(1, context.sampleRate * 7, context.sampleRate);
     const data = buffer.getChannelData(0);
-    let smoothed = 0;
+    let brown = 0;
     for (let i = 0; i < data.length; i += 1) {
-      smoothed = smoothed * 0.985 + (Math.random() * 2 - 1) * 0.015;
-      data[i] = smoothed * 3.2;
+      brown = brown * 0.995 + (Math.random() * 2 - 1) * 0.005;
+      data[i] = brown * 0.8;
     }
 
     const source = context.createBufferSource();
     source.buffer = buffer;
     source.loop = true;
-    const filter = context.createBiquadFilter();
-    filter.type = 'lowpass';
-    filter.frequency.value = 980;
-    filter.Q.value = 0.35;
-    source.connect(filter).connect(this.windGain);
+
+    const highpass = context.createBiquadFilter();
+    highpass.type = 'highpass';
+    highpass.frequency.value = 110;
+    highpass.Q.value = 0.2;
+
+    const lowpass = context.createBiquadFilter();
+    lowpass.type = 'lowpass';
+    lowpass.frequency.value = 520;
+    lowpass.Q.value = 0.25;
+
+    const breathingGain = context.createGain();
+    breathingGain.gain.value = 0.55;
+
+    const lfo = context.createOscillator();
+    const lfoDepth = context.createGain();
+    lfo.type = 'sine';
+    lfo.frequency.value = 0.055;
+    lfoDepth.gain.value = 0.18;
+
+    source.connect(highpass).connect(lowpass).connect(breathingGain).connect(this.windGain);
+    lfo.connect(lfoDepth).connect(breathingGain.gain);
     source.start();
+    lfo.start();
   }
 
   private createNightLayer(context: AudioContext): void {
     if (!this.nightGain) return;
+
+    // Keep night mostly spacious and quiet. A very soft pair of upper partials avoids the
+    // continuous sub-bass drone that can make an otherwise calm scene feel ominous.
     const low = context.createOscillator();
     const upper = context.createOscillator();
     low.type = 'sine';
-    upper.type = 'triangle';
-    low.frequency.value = 73.4;
-    upper.frequency.value = 110.1;
+    upper.type = 'sine';
+    low.frequency.value = 220;
+    upper.frequency.value = 329.6;
 
     const lowGain = context.createGain();
     const upperGain = context.createGain();
-    lowGain.gain.value = 0.62;
-    upperGain.gain.value = 0.12;
+    lowGain.gain.value = 0.08;
+    upperGain.gain.value = 0.035;
     low.connect(lowGain).connect(this.nightGain);
     upper.connect(upperGain).connect(this.nightGain);
     low.start();
@@ -208,9 +231,11 @@ export class AudioSystem {
     const night = 1 - daylight;
     const anomaly = this.worldState.anomalyInside ? Math.min(1.45, Math.max(0.75, this.worldState.anomalyIntensity)) : 0;
 
-    this.windGain.gain.setTargetAtTime(0.1 + daylight * 0.08 + night * 0.025, now, 0.8);
-    this.nightGain.gain.setTargetAtTime(night * 0.075, now, 1.4);
-    this.anomalyGain.gain.setTargetAtTime(anomaly * 0.12, now, this.worldState.anomalyInside ? 0.55 : 1.0);
+    // Ambient sound should sit behind the world rather than announcing itself. Day/night changes are
+    // deliberately gentle, while the anomaly remains the clearly identifiable continuous layer.
+    this.windGain.gain.setTargetAtTime(0.022 + daylight * 0.012 + night * 0.004, now, 2.5);
+    this.nightGain.gain.setTargetAtTime(night * 0.018, now, 2.8);
+    this.anomalyGain.gain.setTargetAtTime(anomaly * 0.1, now, this.worldState.anomalyInside ? 0.7 : 1.2);
   }
 
   private tone(frequency: number, duration: number, gainAmount: number, type: OscillatorType, delay = 0): void {
