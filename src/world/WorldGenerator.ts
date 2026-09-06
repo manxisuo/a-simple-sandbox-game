@@ -74,9 +74,6 @@ export class WorldGenerator {
     ground.receiveShadow = true;
     group.add(ground);
 
-    // A lake is owned by the chunk containing its center. The radius is smaller than a chunk and
-    // the normal view distance is several chunks, so the complete water surface remains loaded
-    // while it is meaningfully visible without duplicating the same lake in neighboring chunks.
     const lakes = this.terrainHeight.getLakesInArea(
       centerX - half,
       centerX + half,
@@ -90,7 +87,9 @@ export class WorldGenerator {
       ) continue;
 
       const water = new THREE.Mesh(this.resources.lakeGeometry, this.resources.waterMaterial);
-      water.scale.set(lake.radiusX * 0.96, 1, lake.radiusZ * 0.96);
+      // Keep the visible water inside the strongly carved part of the basin. The wider outer ring
+      // belongs to the shoreline transition and should remain terrain rather than a flat water disc.
+      water.scale.set(lake.radiusX * 0.78, 1, lake.radiusZ * 0.78);
       water.position.set(lake.centerX - centerX, lake.waterLevel + 0.025, lake.centerZ - centerZ);
       water.receiveShadow = true;
       water.renderOrder = 1;
@@ -109,9 +108,6 @@ export class WorldGenerator {
       if (this.terrainHeight.getWaterSurface(worldX, worldZ) !== null) continue;
 
       const groundY = this.getHeight(worldX, worldZ);
-      // The early prototype scattered generic wooden boxes across every chunk. They were useful
-      // as collision test objects, but they do not belong to the world's visual language. Keep
-      // procedural decoration natural for now: mostly trees with occasional rocks.
       if (rand() < 0.68) this.createTree(group, colliders, x, groundY, z, rand);
       else this.createRock(group, colliders, x, groundY, z, rand);
     }
@@ -154,10 +150,6 @@ export class WorldGenerator {
     crown.receiveShadow = true;
 
     group.add(trunk, crown);
-
-    // Only the trunk blocks movement. Using the crown's full Box3 made a large invisible
-    // rectangular collision volume around the foliage, which could wedge the player between
-    // a tree and another nearby obstacle even when there was visible space to move through.
     colliders.push({ mesh: trunk, box: new THREE.Box3() });
   }
 
