@@ -14,10 +14,13 @@ export interface WeatherEvent {
 
 export type WeatherEventListener = (event: WeatherEvent) => void;
 
+const WEATHER_SEQUENCE: WeatherType[] = ['clear', 'drizzle', 'rain', 'storm', 'mist'];
+
 export class WeatherSystem {
   private readonly rand: () => number;
   private readonly listeners = new Set<WeatherEventListener>();
   private weather: WeatherType = 'clear';
+  private sequenceIndex = 0;
   private intensity = 0;
   private wind = 0.12;
   private nextChangeAt = 18;
@@ -37,7 +40,7 @@ export class WeatherSystem {
   }
 
   update(time: number, delta: number): void {
-    if (time >= this.nextChangeAt) this.chooseNextWeather(time);
+    if (time >= this.nextChangeAt) this.advanceWeather(time);
 
     const targetIntensity = this.weather === 'clear' ? 0 : this.weather === 'drizzle' ? 0.35 : this.weather === 'rain' ? 0.7 : this.weather === 'storm' ? 1 : 0.45;
     const targetWind = this.weather === 'storm' ? 0.85 : this.weather === 'rain' ? 0.45 : this.weather === 'mist' ? 0.08 : 0.18;
@@ -51,15 +54,15 @@ export class WeatherSystem {
     }
   }
 
-  private chooseNextWeather(time: number): void {
-    const roll = this.rand();
-    const next: WeatherType = roll < 0.34 ? 'clear' : roll < 0.52 ? 'drizzle' : roll < 0.72 ? 'rain' : roll < 0.84 ? 'storm' : 'mist';
-    if (next !== this.weather) {
-      this.weather = next;
-      this.emit({ type: 'weather.changed', weather: next, time });
-    }
-    this.nextChangeAt = time + 42 + this.rand() * 58;
-    this.nextThunderAt = next === 'storm' ? time + 3 + this.rand() * 6 : Number.POSITIVE_INFINITY;
+  private advanceWeather(time: number): void {
+    this.sequenceIndex = (this.sequenceIndex + 1) % WEATHER_SEQUENCE.length;
+    this.weather = WEATHER_SEQUENCE[this.sequenceIndex] ?? 'clear';
+    this.emit({ type: 'weather.changed', weather: this.weather, time });
+
+    // V1 deliberately cycles through every weather type so each scene is easy to play-test.
+    // Duration still varies slightly so the sequence does not feel metronomic.
+    this.nextChangeAt = time + 38 + this.rand() * 18;
+    this.nextThunderAt = this.weather === 'storm' ? time + 3 + this.rand() * 6 : Number.POSITIVE_INFINITY;
   }
 
   private emit(event: WeatherEvent): void {
