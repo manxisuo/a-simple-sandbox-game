@@ -1,10 +1,12 @@
 import { t } from '../i18n';
+import type { WeatherType } from '../core/weather/WeatherSystem';
 import type { RuntimeSettings } from '../settings/RuntimeSettings';
 
 interface SettingsPanelOptions {
   settings: RuntimeSettings;
   onLanguageChanged(settings: RuntimeSettings): void;
   onTimeChanged(settings: RuntimeSettings): void;
+  onWeatherChanged(settings: RuntimeSettings): void;
   onCameraChanged(settings: RuntimeSettings): void;
   onVisualChanged(settings: RuntimeSettings): void;
   onAudioChanged(settings: RuntimeSettings): void;
@@ -28,6 +30,7 @@ function cloneSettings(settings: RuntimeSettings): RuntimeSettings {
   return {
     language: settings.language,
     time: { ...settings.time },
+    weather: { ...settings.weather },
     terrain: { ...settings.terrain },
     camera: { ...settings.camera },
     visual: { ...settings.visual },
@@ -102,24 +105,13 @@ export function createSettingsPanel(options: SettingsPanelOptions): SettingsPane
   const addToggle = (parent: HTMLElement, key: string, labelText: string, value: boolean, onChange: (value: boolean) => void): void => {
     const wrapper = element('label', { display: 'flex', gap: '9px', alignItems: 'center', marginBottom: '10px', fontSize: '13px', cursor: 'pointer' });
     const input = document.createElement('input');
-    input.type = 'checkbox';
-    input.checked = value;
+    input.type = 'checkbox'; input.checked = value;
     input.addEventListener('change', () => onChange(input.checked));
     controls.set(key, input);
-    wrapper.append(input, document.createTextNode(labelText));
-    parent.append(wrapper);
+    wrapper.append(input, document.createTextNode(labelText)); parent.append(wrapper);
   };
 
-  const addRange = (
-    parent: HTMLElement,
-    key: string,
-    labelText: string,
-    value: number,
-    min: number,
-    max: number,
-    step: number,
-    onChange: (value: number) => void
-  ): void => {
+  const addRange = (parent: HTMLElement, key: string, labelText: string, value: number, min: number, max: number, step: number, onChange: (value: number) => void): void => {
     const wrapper = row(parent, labelText);
     const line = element('div', { display: 'grid', gridTemplateColumns: '1fr 72px', gap: '8px', alignItems: 'center' });
     const input = document.createElement('input');
@@ -133,67 +125,66 @@ export function createSettingsPanel(options: SettingsPanelOptions): SettingsPane
     };
     input.addEventListener('input', () => apply(Number(input.value)));
     number.addEventListener('change', () => apply(Number(number.value)));
-    controls.set(key, input);
-    controls.set(`${key}:number`, number);
-    line.append(input, number);
-    wrapper.append(line);
+    controls.set(key, input); controls.set(`${key}:number`, number);
+    line.append(input, number); wrapper.append(line);
   };
+
+  const selectStyle: Partial<CSSStyleDeclaration> = { width: '100%', padding: '7px', borderRadius: '8px', color: 'white', background: '#14263a', border: '1px solid rgba(255,255,255,.18)' };
 
   const general = section(tr('settings.general'));
   const languageRow = row(general, tr('settings.language'));
   const language = document.createElement('select');
   for (const value of ['zh-CN', 'en'] as const) {
     const option = document.createElement('option');
-    option.value = value;
-    option.textContent = value === 'zh-CN' ? tr('settings.language.zh') : tr('settings.language.en');
-    language.append(option);
+    option.value = value; option.textContent = value === 'zh-CN' ? tr('settings.language.zh') : tr('settings.language.en'); language.append(option);
   }
-  language.value = settings.language;
-  Object.assign(language.style, { width: '100%', padding: '7px', borderRadius: '8px', color: 'white', background: '#14263a', border: '1px solid rgba(255,255,255,.18)' });
-  language.addEventListener('change', () => {
-    settings.language = language.value as RuntimeSettings['language'];
-    options.onLanguageChanged(settings);
-  });
-  controls.set('language', language);
-  languageRow.append(language);
+  language.value = settings.language; Object.assign(language.style, selectStyle);
+  language.addEventListener('change', () => { settings.language = language.value as RuntimeSettings['language']; options.onLanguageChanged(settings); });
+  controls.set('language', language); languageRow.append(language);
 
   const time = section(tr('settings.time'));
-  addToggle(time, 'time.cycleEnabled', tr('settings.enableCycle'), settings.time.cycleEnabled, value => {
-    settings.time.cycleEnabled = value; options.onTimeChanged(settings);
+  addToggle(time, 'time.cycleEnabled', tr('settings.enableCycle'), settings.time.cycleEnabled, value => { settings.time.cycleEnabled = value; options.onTimeChanged(settings); });
+  addToggle(time, 'time.allowNight', tr('settings.allowNight'), settings.time.allowNight, value => { settings.time.allowNight = value; options.onTimeChanged(settings); });
+  addRange(time, 'time.cycleSeconds', tr('settings.dayLength'), settings.time.cycleSeconds, 30, 1800, 10, value => { settings.time.cycleSeconds = value; options.onTimeChanged(settings); });
+  addRange(time, 'time.timeOfDay', tr('settings.timeOfDay'), settings.time.timeOfDay, 0, 1, 0.01, value => { settings.time.timeOfDay = value; options.onTimeChanged(settings); });
+
+  const weather = section(tr('settings.weather'));
+  const weatherRow = row(weather, tr('settings.weatherMode'));
+  const weatherSelect = document.createElement('select');
+  const weatherOptions: Array<['auto' | WeatherType, Parameters<typeof t>[1]]> = [
+    ['auto', 'settings.weatherAuto'],
+    ['clear', 'settings.weatherClear'],
+    ['drizzle', 'settings.weatherDrizzle'],
+    ['rain', 'settings.weatherRain'],
+    ['storm', 'settings.weatherStorm'],
+    ['mist', 'settings.weatherMist'],
+    ['snow', 'settings.weatherSnow']
+  ];
+  for (const [value, labelKey] of weatherOptions) {
+    const option = document.createElement('option'); option.value = value; option.textContent = tr(labelKey); weatherSelect.append(option);
+  }
+  weatherSelect.value = settings.weather.automatic ? 'auto' : settings.weather.type;
+  Object.assign(weatherSelect.style, selectStyle);
+  weatherSelect.addEventListener('change', () => {
+    const value = weatherSelect.value;
+    settings.weather.automatic = value === 'auto';
+    if (value !== 'auto') settings.weather.type = value as WeatherType;
+    options.onWeatherChanged(settings);
   });
-  addToggle(time, 'time.allowNight', tr('settings.allowNight'), settings.time.allowNight, value => {
-    settings.time.allowNight = value; options.onTimeChanged(settings);
-  });
-  addRange(time, 'time.cycleSeconds', tr('settings.dayLength'), settings.time.cycleSeconds, 30, 1800, 10, value => {
-    settings.time.cycleSeconds = value; options.onTimeChanged(settings);
-  });
-  addRange(time, 'time.timeOfDay', tr('settings.timeOfDay'), settings.time.timeOfDay, 0, 1, 0.01, value => {
-    settings.time.timeOfDay = value; options.onTimeChanged(settings);
-  });
+  controls.set('weather.selection', weatherSelect); weatherRow.append(weatherSelect);
 
   const terrain = section(tr('settings.terrain'));
   const terrainFields: Array<[keyof RuntimeSettings['terrain'], Parameters<typeof t>[1], number, number, number]> = [
-    ['macroScale', 'settings.macroScale', 0.001, 0.012, 0.0005],
-    ['macroAmplitude', 'settings.macroAmplitude', 0, 18, 0.5],
-    ['hillScale', 'settings.hillScale', 0.004, 0.05, 0.001],
-    ['hillAmplitude', 'settings.hillAmplitude', 0, 10, 0.25],
-    ['detailScale', 'settings.detailScale', 0.01, 0.12, 0.0025],
-    ['detailAmplitude', 'settings.detailAmplitude', 0, 2.5, 0.05],
-    ['spawnFlatRadius', 'settings.spawnFlatRadius', 0, 30, 1],
-    ['spawnBlendRadius', 'settings.spawnBlendRadius', 5, 55, 1]
+    ['macroScale', 'settings.macroScale', 0.001, 0.012, 0.0005], ['macroAmplitude', 'settings.macroAmplitude', 0, 18, 0.5],
+    ['hillScale', 'settings.hillScale', 0.004, 0.05, 0.001], ['hillAmplitude', 'settings.hillAmplitude', 0, 10, 0.25],
+    ['detailScale', 'settings.detailScale', 0.01, 0.12, 0.0025], ['detailAmplitude', 'settings.detailAmplitude', 0, 2.5, 0.05],
+    ['spawnFlatRadius', 'settings.spawnFlatRadius', 0, 30, 1], ['spawnBlendRadius', 'settings.spawnBlendRadius', 5, 55, 1]
   ];
   for (const [key, labelKey, min, max, step] of terrainFields) {
-    addRange(terrain, `terrain.${String(key)}`, tr(labelKey), settings.terrain[key], min, max, step, value => {
-      settings.terrain[key] = value;
-    });
+    addRange(terrain, `terrain.${String(key)}`, tr(labelKey), settings.terrain[key], min, max, step, value => { settings.terrain[key] = value; });
   }
-  const applyTerrain = element('button', {
-    width: '100%', border: '1px solid rgba(255,255,255,.2)', borderRadius: '9px', padding: '9px',
-    color: 'white', background: 'rgba(79,137,104,.55)', cursor: 'pointer', fontWeight: '700'
-  });
-  applyTerrain.textContent = tr('settings.applyTerrain');
-  applyTerrain.addEventListener('click', () => options.onApplyTerrain(settings));
-  terrain.append(applyTerrain);
+  const applyTerrain = element('button', { width: '100%', border: '1px solid rgba(255,255,255,.2)', borderRadius: '9px', padding: '9px', color: 'white', background: 'rgba(79,137,104,.55)', cursor: 'pointer', fontWeight: '700' });
+  applyTerrain.textContent = tr('settings.applyTerrain'); applyTerrain.addEventListener('click', () => options.onApplyTerrain(settings)); terrain.append(applyTerrain);
 
   const camera = section(tr('settings.camera'));
   const modeRow = row(camera, tr('settings.viewMode'));
@@ -201,73 +192,40 @@ export function createSettingsPanel(options: SettingsPanelOptions): SettingsPane
   for (const value of ['first-person', 'third-person'] as const) {
     const option = document.createElement('option'); option.value = value; option.textContent = value === 'first-person' ? tr('settings.firstPerson') : tr('settings.thirdPerson'); mode.append(option);
   }
-  mode.value = settings.camera.mode;
-  Object.assign(mode.style, { width: '100%', padding: '7px', borderRadius: '8px', color: 'white', background: '#14263a', border: '1px solid rgba(255,255,255,.18)' });
+  mode.value = settings.camera.mode; Object.assign(mode.style, selectStyle);
   mode.addEventListener('change', () => { settings.camera.mode = mode.value as RuntimeSettings['camera']['mode']; options.onCameraChanged(settings); });
   controls.set('camera.mode', mode); modeRow.append(mode);
-  addRange(camera, 'camera.thirdPersonDistance', tr('settings.thirdPersonDistance'), settings.camera.thirdPersonDistance, 2.5, 10, 0.1, value => {
-    settings.camera.thirdPersonDistance = value; options.onCameraChanged(settings);
-  });
-  addRange(camera, 'camera.lookSensitivity', tr('settings.lookSensitivity'), settings.camera.lookSensitivity, 0.0008, 0.005, 0.0001, value => {
-    settings.camera.lookSensitivity = value; options.onCameraChanged(settings);
-  });
+  addRange(camera, 'camera.thirdPersonDistance', tr('settings.thirdPersonDistance'), settings.camera.thirdPersonDistance, 2.5, 10, 0.1, value => { settings.camera.thirdPersonDistance = value; options.onCameraChanged(settings); });
+  addRange(camera, 'camera.lookSensitivity', tr('settings.lookSensitivity'), settings.camera.lookSensitivity, 0.0008, 0.005, 0.0001, value => { settings.camera.lookSensitivity = value; options.onCameraChanged(settings); });
 
   const visual = section(tr('settings.visual'));
-  addRange(visual, 'visual.viewDistance', tr('settings.viewDistance'), settings.visual.viewDistance, 1, 6, 1, value => {
-    settings.visual.viewDistance = Math.round(value); options.onVisualChanged(settings);
-  });
-  addRange(visual, 'visual.fogFar', tr('settings.fogDistance'), settings.visual.fogFar, 50, 200, 5, value => {
-    settings.visual.fogFar = value; options.onVisualChanged(settings);
-  });
-  addToggle(visual, 'visual.shadows', tr('settings.shadows'), settings.visual.shadows, value => {
-    settings.visual.shadows = value; options.onVisualChanged(settings);
-  });
-  addToggle(visual, 'visual.showSun', tr('settings.showSun'), settings.visual.showSun, value => {
-    settings.visual.showSun = value; options.onVisualChanged(settings);
-  });
-  addToggle(visual, 'visual.showMoon', tr('settings.showMoon'), settings.visual.showMoon, value => {
-    settings.visual.showMoon = value; options.onVisualChanged(settings);
-  });
+  addRange(visual, 'visual.viewDistance', tr('settings.viewDistance'), settings.visual.viewDistance, 1, 6, 1, value => { settings.visual.viewDistance = Math.round(value); options.onVisualChanged(settings); });
+  addRange(visual, 'visual.fogFar', tr('settings.fogDistance'), settings.visual.fogFar, 50, 200, 5, value => { settings.visual.fogFar = value; options.onVisualChanged(settings); });
+  addToggle(visual, 'visual.shadows', tr('settings.shadows'), settings.visual.shadows, value => { settings.visual.shadows = value; options.onVisualChanged(settings); });
+  addToggle(visual, 'visual.showSun', tr('settings.showSun'), settings.visual.showSun, value => { settings.visual.showSun = value; options.onVisualChanged(settings); });
+  addToggle(visual, 'visual.showMoon', tr('settings.showMoon'), settings.visual.showMoon, value => { settings.visual.showMoon = value; options.onVisualChanged(settings); });
 
   const audio = section(tr('settings.audio'));
-  addToggle(audio, 'audio.muted', tr('settings.audioMute'), settings.audio.muted, value => {
-    settings.audio.muted = value; options.onAudioChanged(settings);
-  });
-  addRange(audio, 'audio.masterVolume', tr('settings.audioMaster'), settings.audio.masterVolume, 0, 1, 0.05, value => {
-    settings.audio.masterVolume = value; options.onAudioChanged(settings);
-  });
-  addRange(audio, 'audio.ambientVolume', tr('settings.audioAmbient'), settings.audio.ambientVolume, 0, 1, 0.05, value => {
-    settings.audio.ambientVolume = value; options.onAudioChanged(settings);
-  });
-  addRange(audio, 'audio.effectsVolume', tr('settings.audioEffects'), settings.audio.effectsVolume, 0, 1, 0.05, value => {
-    settings.audio.effectsVolume = value; options.onAudioChanged(settings);
-  });
+  addToggle(audio, 'audio.muted', tr('settings.audioMute'), settings.audio.muted, value => { settings.audio.muted = value; options.onAudioChanged(settings); });
+  addRange(audio, 'audio.masterVolume', tr('settings.audioMaster'), settings.audio.masterVolume, 0, 1, 0.05, value => { settings.audio.masterVolume = value; options.onAudioChanged(settings); });
+  addRange(audio, 'audio.ambientVolume', tr('settings.audioAmbient'), settings.audio.ambientVolume, 0, 1, 0.05, value => { settings.audio.ambientVolume = value; options.onAudioChanged(settings); });
+  addRange(audio, 'audio.effectsVolume', tr('settings.audioEffects'), settings.audio.effectsVolume, 0, 1, 0.05, value => { settings.audio.effectsVolume = value; options.onAudioChanged(settings); });
 
-  const reset = element('button', {
-    width: '100%', border: '1px solid rgba(255,255,255,.2)', borderRadius: '9px', padding: '10px',
-    color: 'white', background: 'rgba(255,255,255,.08)', cursor: 'pointer'
-  });
+  const reset = element('button', { width: '100%', border: '1px solid rgba(255,255,255,.2)', borderRadius: '9px', padding: '10px', color: 'white', background: 'rgba(255,255,255,.08)', cursor: 'pointer' });
   reset.textContent = tr('settings.reset');
-  reset.addEventListener('click', () => {
-    settings = cloneSettings(options.onReset());
-    refresh(settings);
-  });
-  drawer.append(reset);
-  document.body.append(gear, backdrop, drawer);
+  reset.addEventListener('click', () => { settings = cloneSettings(options.onReset()); refresh(settings); });
+  drawer.append(reset); document.body.append(gear, backdrop, drawer);
 
   const refresh = (next: RuntimeSettings): void => {
     settings = cloneSettings(next);
     for (const [key, control] of controls) {
-      if (key === 'language') {
-        control.value = settings.language;
-        continue;
-      }
+      if (key === 'language') { control.value = settings.language; continue; }
+      if (key === 'weather.selection') { control.value = settings.weather.automatic ? 'auto' : settings.weather.type; continue; }
       const [baseKey] = key.split(':');
       const [sectionKey, field] = baseKey.split('.') as [keyof RuntimeSettings, string];
       const group = settings[sectionKey] as unknown as Record<string, unknown>;
       const value = group[field];
-      if (control instanceof HTMLInputElement && control.type === 'checkbox') control.checked = Boolean(value);
-      else control.value = String(value);
+      if (control instanceof HTMLInputElement && control.type === 'checkbox') control.checked = Boolean(value); else control.value = String(value);
     }
   };
 
