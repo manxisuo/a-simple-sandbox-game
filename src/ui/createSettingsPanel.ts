@@ -7,6 +7,7 @@ interface SettingsPanelOptions {
   onTimeChanged(settings: RuntimeSettings): void;
   onCameraChanged(settings: RuntimeSettings): void;
   onVisualChanged(settings: RuntimeSettings): void;
+  onAudioChanged(settings: RuntimeSettings): void;
   onApplyTerrain(settings: RuntimeSettings): void;
   onReset(): RuntimeSettings;
 }
@@ -29,7 +30,8 @@ function cloneSettings(settings: RuntimeSettings): RuntimeSettings {
     time: { ...settings.time },
     terrain: { ...settings.terrain },
     camera: { ...settings.camera },
-    visual: { ...settings.visual }
+    visual: { ...settings.visual },
+    audio: { ...settings.audio }
   };
 }
 
@@ -225,6 +227,20 @@ export function createSettingsPanel(options: SettingsPanelOptions): SettingsPane
   });
   addToggle(visual, 'visual.showMoon', tr('settings.showMoon'), settings.visual.showMoon, value => {
     settings.visual.showMoon = value; options.onVisualChanged(settings);
+  });
+
+  const audio = section(tr('settings.audio'));
+  addToggle(audio, 'audio.muted', tr('settings.audioMute'), settings.audio.muted, value => {
+    settings.audio.muted = value; options.onAudioChanged(settings);
+  });
+  addRange(audio, 'audio.masterVolume', tr('settings.audioMaster'), settings.audio.masterVolume, 0, 1, 0.05, value => {
+    settings.audio.masterVolume = value; options.onAudioChanged(settings);
+  });
+  addRange(audio, 'audio.ambientVolume', tr('settings.audioAmbient'), settings.audio.ambientVolume, 0, 1, 0.05, value => {
+    settings.audio.ambientVolume = value; options.onAudioChanged(settings);
+  });
+  addRange(audio, 'audio.effectsVolume', tr('settings.audioEffects'), settings.audio.effectsVolume, 0, 1, 0.05, value => {
+    settings.audio.effectsVolume = value; options.onAudioChanged(settings);
   });
 
   const reset = element('button', {
