@@ -5,17 +5,27 @@ import type { WorldConfig, WorldResources, WorldRuntime } from '../types';
 
 export function createWorld(scene: THREE.Scene, config: WorldConfig): WorldRuntime {
   const rand = createSeededRandom(config.seed ^ 0x51f15e);
+  const lakeGeometry = new THREE.CircleGeometry(1, 64);
+  lakeGeometry.rotateX(-Math.PI / 2);
 
   const resources: WorldResources = {
-    boxGeometry: new THREE.BoxGeometry(1, 1, 1),
     trunkGeometry: new THREE.CylinderGeometry(1, 1, 1, 10),
     crownGeometry: new THREE.SphereGeometry(1, 18, 14),
     rockGeometry: new THREE.DodecahedronGeometry(1, 0),
+    lakeGeometry,
     groundMaterial: new THREE.MeshStandardMaterial({ color: 0x35a853, roughness: 0.9 }),
-    boxMaterial: new THREE.MeshStandardMaterial({ color: 0x9a6a3a, roughness: 0.74 }),
     trunkMaterial: new THREE.MeshStandardMaterial({ color: 0x6b4226, roughness: 0.82 }),
     crownMaterial: new THREE.MeshStandardMaterial({ color: 0x19783a, roughness: 0.9 }),
-    rockMaterial: new THREE.MeshStandardMaterial({ color: 0x6d7677, roughness: 0.95 })
+    rockMaterial: new THREE.MeshStandardMaterial({ color: 0x6d7677, roughness: 0.95 }),
+    waterMaterial: new THREE.MeshStandardMaterial({
+      color: 0x3c9fc4,
+      roughness: 0.22,
+      metalness: 0.02,
+      transparent: true,
+      opacity: 0.72,
+      depthWrite: false,
+      side: THREE.DoubleSide
+    })
   };
 
   const chunkManager = new ChunkManager({ scene, config, resources });
