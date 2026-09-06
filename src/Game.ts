@@ -209,14 +209,15 @@ export class Game {
   private handleWeatherEvent(event: WeatherEvent): void {
     this.audio.handleEvent(event);
     if (event.type === 'weather.thunder') {
-      this.weatherRenderer.triggerLightning(event.time);
+      this.weatherRenderer.triggerLightning(event.time, this.player.position);
       return;
     }
     const key = event.weather === 'clear' ? 'message.weatherClear'
       : event.weather === 'drizzle' ? 'message.weatherDrizzle'
         : event.weather === 'rain' ? 'message.weatherRain'
           : event.weather === 'storm' ? 'message.weatherStorm'
-            : 'message.weatherMist';
+            : event.weather === 'snow' ? 'message.weatherSnow'
+              : 'message.weatherMist';
     this.ui.showMessage(t(this.settings.language, key), 3.2);
   }
 
