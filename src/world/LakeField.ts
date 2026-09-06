@@ -7,6 +7,8 @@ export interface LakeDescriptor {
   depth: number;
 }
 
+type HeightSampler = (worldX: number, worldZ: number) => number;
+
 function hash(seed: number, x: number, z: number, salt: number): number {
   let h = (seed ^ salt) >>> 0;
   h ^= Math.imul(x | 0, 0x9e3779b1);
@@ -23,16 +25,18 @@ function unit(seed: number, x: number, z: number, salt: number): number {
 /**
  * Renderer-independent deterministic placement for shallow lakes.
  *
- * The field is intentionally sparse. Each large world cell can contribute at most one lake,
- * which keeps water as a landmark rather than turning low terrain into a global ocean.
+ * Placement is sparse and terrain-aware. Candidate lakes are rejected when the surrounding
+ * base terrain is too steep, which prevents a flat water plane from cutting through a hillside.
  */
 export class LakeField {
   private readonly seed: number;
+  private readonly sampleHeight: HeightSampler;
   private readonly cellSize = 92;
   private readonly maxRadius = 20;
 
-  constructor(seed: number) {
+  constructor(seed: number, sampleHeight: HeightSampler) {
     this.seed = seed;
+    this.sampleHeight = sampleHeight;
   }
 
   getNearPoint(worldX: number, worldZ: number): LakeDescriptor[] {
@@ -68,8 +72,6 @@ export class LakeField {
   }
 
   private lakeForCell(cellX: number, cellZ: number): LakeDescriptor | null {
-    // About one third of large cells contain a lake. Suppress the spawn clearing so the first
-    // moments of the game remain predictable and the campfire does not start in water.
     if (unit(this.seed, cellX, cellZ, 0x1a2b3c4d) > 0.34) return null;
 
     const jitterX = (unit(this.seed, cellX, cellZ, 0x72b4a911) - 0.5) * this.cellSize * 0.48;
@@ -80,7 +82,26 @@ export class LakeField {
 
     const radiusX = 10 + unit(this.seed, cellX, cellZ, 0x91e10da5) * 9;
     const radiusZ = 8 + unit(this.seed, cellX, cellZ, 0x4ac3265b) * 8;
-    const depth = 0.3 + unit(this.seed, cellX, cellZ, 0xdecafbad) * 0.38;
+
+    // Check the unmodified terrain before accepting the lake. Sampling around the future water
+    // footprint is cheap at placement time and avoids obviously artificial hillside discs.
+    const samples: Array<[number, number]> = [
+      [0, 0],
+      [0.72, 0], [-0.72, 0], [0, 0.72], [0, -0.72],
+      [0.52, 0.52], [-0.52, 0.52], [0.52, -0.52], [-0.52, -0.52]
+    ];
+    const heights = samples.map(([nx, nz]) => this.sampleHeight(centerX + nx * radiusX, centerZ + nz * radiusZ));
+    const minHeight = Math.min(...heights);
+    const maxHeight = Math.max(...heights);
+    const centerHeight = heights[0] ?? 0;
+    const surroundingAverage = heights.slice(1).reduce((sum, value) => sum + value, 0) / Math.max(1, heights.length - 1);
+
+    // Lakes should occupy broad low/level ground, not a steep hillside. Also reject candidates
+    // whose centre stands noticeably above its surroundings, which would require carving a crater.
+    if (maxHeight - minHeight > 1.45) return null;
+    if (centerHeight > surroundingAverage + 0.55) return null;
+
+    const depth = 0.48 + unit(this.seed, cellX, cellZ, 0xdecafbad) * 0.34;
 
     return {
       id: `lake:${cellX},${cellZ}`,
