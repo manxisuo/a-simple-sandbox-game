@@ -68,7 +68,7 @@ export class TerrainHeight {
   constructor(config: WorldConfig) {
     this.seed = config.seed;
     this.terrain = config.terrain;
-    this.lakes = new LakeField(config.seed ^ 0x4c414b45);
+    this.lakes = new LakeField(config.seed ^ 0x4c414b45, (x, z) => this.getBaseHeight(x, z));
   }
 
   getHeight(worldX: number, worldZ: number): number {
@@ -79,11 +79,21 @@ export class TerrainHeight {
       if (distance >= 1) continue;
 
       const waterLevel = this.getLakeWaterLevel(lake);
-      // Keep the basin shallow for V1: the player can wade through it without requiring a full
-      // swimming controller yet. The last ~25% of the radius becomes a soft natural shoreline.
-      const basin = 1 - smoothstep(Math.min(1, distance / 0.78));
-      const targetBed = waterLevel - lake.depth * (0.3 + basin * 0.7);
-      const shoreBlend = 1 - smoothstep(Math.max(0, (distance - 0.72) / 0.28));
+      const waterRadius = 0.78;
+      const basin = 1 - smoothstep(Math.min(1, distance / waterRadius));
+      const targetBed = waterLevel - lake.depth * (0.42 + basin * 0.58);
+
+      if (distance <= waterRadius) {
+        // The visible water footprint is guaranteed to sit above carved terrain. This avoids a
+        // flat water plane intersecting a hillside even when the original local terrain varied.
+        height = Math.min(height, targetBed);
+        continue;
+      }
+
+      // Outside the visible water footprint, blend the basin back into the original terrain over
+      // the remaining radius to produce a soft bank instead of a sharp circular cut.
+      const shoreT = (distance - waterRadius) / Math.max(0.001, 1 - waterRadius);
+      const shoreBlend = 1 - smoothstep(Math.min(1, Math.max(0, shoreT)));
       height = Math.min(height, lerp(height, targetBed, shoreBlend));
     }
 
@@ -93,7 +103,7 @@ export class TerrainHeight {
   getWaterSurface(worldX: number, worldZ: number): number | null {
     let surface: number | null = null;
     for (const lake of this.lakes.getNearPoint(worldX, worldZ)) {
-      if (this.lakes.normalizedDistance(lake, worldX, worldZ) >= 0.96) continue;
+      if (this.lakes.normalizedDistance(lake, worldX, worldZ) >= 0.78) continue;
       const waterLevel = this.getLakeWaterLevel(lake);
       if (this.getHeight(worldX, worldZ) >= waterLevel - 0.02) continue;
       surface = surface === null ? waterLevel : Math.max(surface, waterLevel);
@@ -109,9 +119,7 @@ export class TerrainHeight {
   }
 
   private getLakeWaterLevel(lake: LakeDescriptor): number {
-    // Anchor each lake to its own local terrain rather than one global sea level. This keeps the
-    // world as a landscape with occasional inland water instead of accidentally creating oceans.
-    return this.getBaseHeight(lake.centerX, lake.centerZ) - 0.18;
+    return this.getBaseHeight(lake.centerX, lake.centerZ) - 0.2;
   }
 
   private getBaseHeight(worldX: number, worldZ: number): number {
