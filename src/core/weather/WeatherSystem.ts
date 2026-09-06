@@ -23,6 +23,7 @@ export class WeatherSystem {
   private sequenceIndex = 0;
   private intensity = 0;
   private wind = 0.12;
+  private automatic = true;
   private nextChangeAt = 18;
   private nextThunderAt = Number.POSITIVE_INFINITY;
 
@@ -39,8 +40,21 @@ export class WeatherSystem {
     return { type: this.weather, intensity: this.intensity, wind: this.wind };
   }
 
+  setAutomatic(enabled: boolean, time: number): void {
+    this.automatic = enabled;
+    if (enabled) this.nextChangeAt = time + 18;
+  }
+
+  setWeather(type: WeatherType, time: number, emit = true): void {
+    if (type === this.weather && !emit) return;
+    this.weather = type;
+    this.sequenceIndex = Math.max(0, WEATHER_SEQUENCE.indexOf(type));
+    this.nextThunderAt = type === 'storm' ? time + 1.5 + this.rand() * 3 : Number.POSITIVE_INFINITY;
+    if (emit) this.emit({ type: 'weather.changed', weather: type, time });
+  }
+
   update(time: number, delta: number): void {
-    if (time >= this.nextChangeAt) this.advanceWeather(time);
+    if (this.automatic && time >= this.nextChangeAt) this.advanceWeather(time);
 
     const targetIntensity = this.weather === 'clear' ? 0
       : this.weather === 'drizzle' ? 0.35
@@ -65,12 +79,8 @@ export class WeatherSystem {
 
   private advanceWeather(time: number): void {
     this.sequenceIndex = (this.sequenceIndex + 1) % WEATHER_SEQUENCE.length;
-    this.weather = WEATHER_SEQUENCE[this.sequenceIndex] ?? 'clear';
-    this.emit({ type: 'weather.changed', weather: this.weather, time });
-
-    // V1 deliberately cycles through every weather type so each scene is easy to play-test.
+    this.setWeather(WEATHER_SEQUENCE[this.sequenceIndex] ?? 'clear', time, true);
     this.nextChangeAt = time + 38 + this.rand() * 18;
-    this.nextThunderAt = this.weather === 'storm' ? time + 3 + this.rand() * 6 : Number.POSITIVE_INFINITY;
   }
 
   private emit(event: WeatherEvent): void {
