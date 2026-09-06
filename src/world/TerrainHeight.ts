@@ -1,4 +1,5 @@
 import type { WorldConfig } from '../types';
+import { LakeField, type LakeDescriptor } from './LakeField';
 
 function hash2D(seed: number, x: number, z: number): number {
   let h = seed >>> 0;
@@ -55,16 +56,65 @@ function fbm(seed: number, x: number, z: number, octaves = 4): number {
   return total / normalization;
 }
 
+export interface LakeSurface extends LakeDescriptor {
+  waterLevel: number;
+}
+
 export class TerrainHeight {
   private readonly seed: number;
   private readonly terrain: WorldConfig['terrain'];
+  private readonly lakes: LakeField;
 
   constructor(config: WorldConfig) {
     this.seed = config.seed;
     this.terrain = config.terrain;
+    this.lakes = new LakeField(config.seed ^ 0x4c414b45);
   }
 
   getHeight(worldX: number, worldZ: number): number {
+    let height = this.getBaseHeight(worldX, worldZ);
+
+    for (const lake of this.lakes.getNearPoint(worldX, worldZ)) {
+      const distance = this.lakes.normalizedDistance(lake, worldX, worldZ);
+      if (distance >= 1) continue;
+
+      const waterLevel = this.getLakeWaterLevel(lake);
+      // Keep the basin shallow for V1: the player can wade through it without requiring a full
+      // swimming controller yet. The last ~25% of the radius becomes a soft natural shoreline.
+      const basin = 1 - smoothstep(Math.min(1, distance / 0.78));
+      const targetBed = waterLevel - lake.depth * (0.3 + basin * 0.7);
+      const shoreBlend = 1 - smoothstep(Math.max(0, (distance - 0.72) / 0.28));
+      height = Math.min(height, lerp(height, targetBed, shoreBlend));
+    }
+
+    return height;
+  }
+
+  getWaterSurface(worldX: number, worldZ: number): number | null {
+    let surface: number | null = null;
+    for (const lake of this.lakes.getNearPoint(worldX, worldZ)) {
+      if (this.lakes.normalizedDistance(lake, worldX, worldZ) >= 0.96) continue;
+      const waterLevel = this.getLakeWaterLevel(lake);
+      if (this.getHeight(worldX, worldZ) >= waterLevel - 0.02) continue;
+      surface = surface === null ? waterLevel : Math.max(surface, waterLevel);
+    }
+    return surface;
+  }
+
+  getLakesInArea(minX: number, maxX: number, minZ: number, maxZ: number): LakeSurface[] {
+    return this.lakes.getInArea(minX, maxX, minZ, maxZ).map(lake => ({
+      ...lake,
+      waterLevel: this.getLakeWaterLevel(lake)
+    }));
+  }
+
+  private getLakeWaterLevel(lake: LakeDescriptor): number {
+    // Anchor each lake to its own local terrain rather than one global sea level. This keeps the
+    // world as a landscape with occasional inland water instead of accidentally creating oceans.
+    return this.getBaseHeight(lake.centerX, lake.centerZ) - 0.18;
+  }
+
+  private getBaseHeight(worldX: number, worldZ: number): number {
     const {
       macroScale,
       macroAmplitude,
