@@ -11,7 +11,7 @@ Weather V1 adds several changing meteorological scenes while keeping weather sem
 - mist
 - snow
 
-V1 cycles through all six in sequence so every scene can be play-tested easily. Durations vary slightly. A later version can replace this with probability-, season-, location-, or world-rule-driven transitions.
+V1 cycles through all six in sequence so every scene can be play-tested easily. Durations vary slightly. For testing and experience tuning, Runtime Settings also exposes a direct weather selector with `Automatic cycle` plus every concrete weather type. Manual selection is persisted and freezes automatic transitions until automatic mode is restored.
 
 ## Architecture
 
@@ -22,7 +22,7 @@ core/weather/WeatherSystem
         └──────────────► AudioSystem
 ```
 
-`WeatherSystem` owns semantic weather state such as type, intensity, wind, transitions, and thunder events. It has no dependency on Three.js, DOM APIs, materials, particles, or Web Audio.
+`WeatherSystem` owns semantic weather state such as type, intensity, wind, transitions, manual override, and thunder events. It has no dependency on Three.js, DOM APIs, materials, particles, or Web Audio.
 
 `ThreeWeatherRenderer` owns rain particles, low mist, snowflake presentation, lightning bolts, and lightning flashes. Snow uses a small generated six-arm snowflake texture rather than cube-like precipitation geometry.
 
@@ -34,7 +34,7 @@ The ordinary world ambience should remain quiet. Weather is allowed to become mo
 
 ## Lightning
 
-Thunder remains a semantic `weather.thunder` event. The renderer turns that event into both a short scene flash and a visible jagged bolt at a randomized nearby location, while the audio layer generates the thunder independently.
+Thunder remains a semantic `weather.thunder` event. The renderer turns that event into both a short scene flash and a visible jagged bolt at a randomized nearby location, while the audio layer generates the thunder independently. Manual storm mode still schedules thunder, so lightning can be tested without waiting for the automatic weather sequence.
 
 ## Future pressure points
 
