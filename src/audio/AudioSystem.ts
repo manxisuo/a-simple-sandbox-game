@@ -12,7 +12,7 @@ interface AudioWorldState {
 }
 
 interface AudioWeatherState {
-  type: 'clear' | 'drizzle' | 'rain' | 'storm' | 'mist';
+  type: 'clear' | 'drizzle' | 'rain' | 'storm' | 'mist' | 'snow';
   intensity: number;
 }
 
@@ -143,7 +143,6 @@ export class AudioSystem {
 
   private createRainLayer(context: AudioContext): void {
     if (!this.rainGain) return;
-    // Broad but quiet rain texture; heavily band-limited so it reads as rainfall rather than harsh static.
     this.createFilteredNoise(context, 5, 700, 4300, this.rainGain, 0.55);
   }
 
@@ -177,12 +176,13 @@ export class AudioSystem {
     const anomaly = this.worldState.anomalyInside ? Math.min(1.45, Math.max(0.75, this.worldState.anomalyIntensity)) : 0;
     const weather = this.weatherState.type;
     const weatherIntensity = this.clamp01(this.weatherState.intensity);
-    this.windGain.gain.setTargetAtTime((0.022 + daylight * 0.012 + night * 0.004) * (weather === 'storm' ? 1.7 : weather === 'rain' ? 1.25 : 1), now, 2.5);
+    this.windGain.gain.setTargetAtTime((0.022 + daylight * 0.012 + night * 0.004) * (weather === 'storm' ? 1.7 : weather === 'rain' ? 1.25 : weather === 'snow' ? 0.72 : 1), now, 2.5);
     this.nightGain.gain.setTargetAtTime(night * 0.018, now, 2.8);
     this.anomalyGain.gain.setTargetAtTime(anomaly * 0.1, now, this.worldState.anomalyInside ? 0.7 : 1.2);
     const rainBase = weather === 'drizzle' ? 0.035 : weather === 'rain' ? 0.075 : weather === 'storm' ? 0.12 : 0;
     this.rainGain.gain.setTargetAtTime(rainBase * (0.65 + weatherIntensity * 0.35), now, 1.8);
-    this.mistGain.gain.setTargetAtTime(weather === 'mist' ? 0.025 : 0, now, 2.8);
+    // Snow is intentionally hushed: a faint low-mid air layer, not a separate noisy texture.
+    this.mistGain.gain.setTargetAtTime(weather === 'mist' ? 0.025 : weather === 'snow' ? 0.012 : 0, now, 2.8);
   }
 
   private tone(frequency: number, duration: number, gainAmount: number, type: OscillatorType, delay = 0): void {
