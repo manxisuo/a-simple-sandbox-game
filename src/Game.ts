@@ -101,13 +101,12 @@ export class Game {
     });
     this.cameraController.update(0);
 
-    this.entities = new EntitySystem({
-      rand: this.world.rand,
-      getGroundHeight: (x, z) => this.world.getHeight(x, z)
-    });
+    this.entities = new EntitySystem({ rand: this.world.rand, getGroundHeight: (x, z) => this.world.getHeight(x, z) });
     this.weather = new WeatherSystem(this.world.rand);
     this.weatherRenderer = new ThreeWeatherRenderer(this.scene);
     this.weather.onEvent(event => this.handleWeatherEvent(event));
+    this.weather.setAutomatic(this.settings.weather.automatic, 0);
+    if (!this.settings.weather.automatic) this.weather.setWeather(this.settings.weather.type, 0, false);
 
     this.entityRenderer = new ThreeEntityRenderer(this.scene);
     this.echoFieldRenderer = new ThreeEchoFieldRenderer(this.scene);
@@ -122,14 +121,7 @@ export class Game {
     });
     this.entities.onEvent(event => this.handleEntityEvent(event));
 
-    this.collectibles = new CollectibleSystem({
-      scene: this.scene,
-      player: this.player,
-      ui: this.ui,
-      rand: this.world.rand,
-      getGroundHeight: (x, z) => this.world.getHeight(x, z)
-    });
-
+    this.collectibles = new CollectibleSystem({ scene: this.scene, player: this.player, ui: this.ui, rand: this.world.rand, getGroundHeight: (x, z) => this.world.getHeight(x, z) });
     this.atmosphere = new AtmosphereSystem({ scene: this.scene, world: this.world, player: this.player, rand: this.world.rand });
 
     this.dayNight = new DayNightSystem({
@@ -150,6 +142,13 @@ export class Game {
       settings: this.settings,
       onLanguageChanged: settings => { this.settings = settings; saveRuntimeSettings(this.settings); window.location.reload(); },
       onTimeChanged: settings => { this.settings = settings; this.applyTimeSettings(); saveRuntimeSettings(this.settings); },
+      onWeatherChanged: settings => {
+        this.settings = settings;
+        const time = this.clock.elapsedTime;
+        this.weather.setAutomatic(settings.weather.automatic, time);
+        if (!settings.weather.automatic) this.weather.setWeather(settings.weather.type, time, true);
+        saveRuntimeSettings(this.settings);
+      },
       onCameraChanged: settings => {
         this.settings = settings;
         this.cameraController.setThirdPersonDistance(settings.camera.thirdPersonDistance);
