@@ -26,6 +26,16 @@ WorldGenerator (water surface presentation + object exclusion)
 
 `WorldGenerator` renders an oval water surface using shared Three.js resources and avoids spawning trees or rocks under water.
 
+## Hillside-disc safeguard
+
+The first implementation could place a large flat water ellipse on sloped terrain, producing an obvious blue disc intersecting a hillside. V1.1 addresses that in three layers:
+
+1. reject candidate sites whose sampled local relief is too large;
+2. guarantee all terrain under the visible water footprint is carved below water level;
+3. shrink rendered water to the inner basin while leaving the outer ring as natural shoreline transition.
+
+The long-term direction is still a terrain-clipped or irregular shoreline mesh, but the V1.1 rules remove the most artificial failure mode without prematurely building a full hydrology system.
+
 ## Why the lakes are shallow in V1
 
 The player controller does not yet implement swimming or buoyancy. Deeply carved lakes would make the player walk along the lake bed while the camera could end up underwater. V1 therefore uses shallow basins that can be waded through while still giving the landscape a visible body of water.
