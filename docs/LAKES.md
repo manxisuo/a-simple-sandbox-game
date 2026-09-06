@@ -13,16 +13,16 @@ Lakes are the first step away from a world that reads as uniformly grassy terrai
 ## Structure
 
 ```text
-LakeField (deterministic lake placement)
+LakeField (deterministic, terrain-aware lake placement)
         ↓
 TerrainHeight (shallow basin shaping + water level)
         ↓
 WorldGenerator (water surface presentation + object exclusion)
 ```
 
-`LakeField` contains no Three.js objects. It produces semantic/geometric lake descriptors such as center, radii, and shallow depth.
+`LakeField` contains no Three.js objects. It produces semantic/geometric lake descriptors such as center, radii, and shallow depth. Candidate sites are sampled against the unmodified height field and rejected when the local relief is too steep, so lakes prefer broad low/level ground rather than hillsides.
 
-`TerrainHeight` applies a softly blended basin to the normal terrain height and exposes the corresponding local water level.
+`TerrainHeight` applies a softly blended basin to the normal terrain height and exposes the corresponding local water level. The visible water footprint sits inside the strongly carved part of the basin; the wider outer ring is reserved for shoreline transition. This guarantees the flat water surface does not cut through raised terrain at its edge.
 
 `WorldGenerator` renders an oval water surface using shared Three.js resources and avoids spawning trees or rocks under water.
 
@@ -35,6 +35,7 @@ This is an intentional staging choice, not the final water model.
 ## Future pressure points
 
 - swimming / buoyancy and underwater camera behavior
+- irregular / terrain-clipped water meshes instead of simple ellipses
 - ripples and shoreline foam
 - rain affecting lake surface presentation
 - reflections or environment-aware water shading
