@@ -1,5 +1,6 @@
 import { GAME_CONFIG } from '../config';
 import type { CameraMode } from '../camera/CameraController';
+import type { WeatherType } from '../core/weather/WeatherSystem';
 import type { Locale } from '../i18n';
 import type { TerrainConfig, WorldConfig } from '../types';
 
@@ -10,6 +11,10 @@ export interface RuntimeSettings {
     allowNight: boolean;
     cycleSeconds: number;
     timeOfDay: number;
+  };
+  weather: {
+    automatic: boolean;
+    type: WeatherType;
   };
   terrain: TerrainConfig;
   camera: {
@@ -42,6 +47,10 @@ export const DEFAULT_RUNTIME_SETTINGS: RuntimeSettings = {
     cycleSeconds: GAME_CONFIG.dayNight.cycleSeconds,
     timeOfDay: GAME_CONFIG.dayNight.initialProgress
   },
+  weather: {
+    automatic: true,
+    type: 'clear'
+  },
   terrain: { ...GAME_CONFIG.world.terrain },
   camera: {
     mode: 'first-person',
@@ -67,6 +76,7 @@ function mergeSettings(saved: Partial<RuntimeSettings> | null): RuntimeSettings 
   return {
     language: saved?.language === 'en' ? 'en' : DEFAULT_RUNTIME_SETTINGS.language,
     time: { ...DEFAULT_RUNTIME_SETTINGS.time, ...(saved?.time ?? {}) },
+    weather: { ...DEFAULT_RUNTIME_SETTINGS.weather, ...(saved?.weather ?? {}) },
     terrain: { ...DEFAULT_RUNTIME_SETTINGS.terrain, ...(saved?.terrain ?? {}) },
     camera: { ...DEFAULT_RUNTIME_SETTINGS.camera, ...(saved?.camera ?? {}) },
     visual: { ...DEFAULT_RUNTIME_SETTINGS.visual, ...(saved?.visual ?? {}) },
