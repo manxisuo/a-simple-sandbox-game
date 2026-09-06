@@ -74,6 +74,29 @@ export class WorldGenerator {
     ground.receiveShadow = true;
     group.add(ground);
 
+    // A lake is owned by the chunk containing its center. The radius is smaller than a chunk and
+    // the normal view distance is several chunks, so the complete water surface remains loaded
+    // while it is meaningfully visible without duplicating the same lake in neighboring chunks.
+    const lakes = this.terrainHeight.getLakesInArea(
+      centerX - half,
+      centerX + half,
+      centerZ - half,
+      centerZ + half
+    );
+    for (const lake of lakes) {
+      if (
+        lake.centerX < centerX - half || lake.centerX >= centerX + half ||
+        lake.centerZ < centerZ - half || lake.centerZ >= centerZ + half
+      ) continue;
+
+      const water = new THREE.Mesh(this.resources.lakeGeometry, this.resources.waterMaterial);
+      water.scale.set(lake.radiusX * 0.96, lake.radiusZ * 0.96, 1);
+      water.position.set(lake.centerX - centerX, lake.waterLevel + 0.025, lake.centerZ - centerZ);
+      water.receiveShadow = true;
+      water.renderOrder = 1;
+      group.add(water);
+    }
+
     const objectCount = Math.max(0, Math.round(objectsPerChunk * (0.65 + rand() * 0.7)));
     for (let i = 0; i < objectCount; i += 1) {
       const margin = 2.5;
@@ -83,11 +106,13 @@ export class WorldGenerator {
       const worldZ = centerZ + z;
 
       if (Math.hypot(worldX, worldZ) < 11) continue;
+      if (this.terrainHeight.getWaterSurface(worldX, worldZ) !== null) continue;
 
       const groundY = this.getHeight(worldX, worldZ);
-      const roll = rand();
-      if (roll < 0.38) this.createBox(group, colliders, x, groundY, z, rand);
-      else if (roll < 0.82) this.createTree(group, colliders, x, groundY, z, rand);
+      // The early prototype scattered generic wooden boxes across every chunk. They were useful
+      // as collision test objects, but they do not belong to the world's visual language. Keep
+      // procedural decoration natural for now: mostly trees with occasional rocks.
+      if (rand() < 0.68) this.createTree(group, colliders, x, groundY, z, rand);
       else this.createRock(group, colliders, x, groundY, z, rand);
     }
 
@@ -102,27 +127,6 @@ export class WorldGenerator {
       colliders: colliders.map(entry => entry.box),
       ground
     };
-  }
-
-  private createBox(
-    group: THREE.Group,
-    colliders: ColliderEntry[],
-    x: number,
-    groundY: number,
-    z: number,
-    rand: RandomSource
-  ): void {
-    const mesh = new THREE.Mesh(this.resources.boxGeometry, this.resources.boxMaterial);
-    const width = 1.2 + rand() * 1.8;
-    const height = 1 + rand() * 2.3;
-    const depth = 1.2 + rand() * 1.8;
-    mesh.scale.set(width, height, depth);
-    mesh.position.set(x, groundY + height / 2, z);
-    mesh.rotation.y = rand() * Math.PI;
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-    group.add(mesh);
-    colliders.push({ mesh, box: new THREE.Box3() });
   }
 
   private createTree(
