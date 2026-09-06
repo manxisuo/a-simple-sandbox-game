@@ -90,7 +90,7 @@ export class WorldGenerator {
       ) continue;
 
       const water = new THREE.Mesh(this.resources.lakeGeometry, this.resources.waterMaterial);
-      water.scale.set(lake.radiusX * 0.96, lake.radiusZ * 0.96, 1);
+      water.scale.set(lake.radiusX * 0.96, 1, lake.radiusZ * 0.96);
       water.position.set(lake.centerX - centerX, lake.waterLevel + 0.025, lake.centerZ - centerZ);
       water.receiveShadow = true;
       water.renderOrder = 1;
