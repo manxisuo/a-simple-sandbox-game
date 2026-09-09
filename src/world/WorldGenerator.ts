@@ -49,6 +49,7 @@ export class WorldGenerator {
     const rand = createSeededRandom(hashChunk(seed, chunkX, chunkZ));
     const group = new THREE.Group();
     const colliders: ColliderEntry[] = [];
+    const ownedGeometries: THREE.BufferGeometry[] = [];
     const half = chunkSize / 2;
     const centerX = chunkX * chunkSize + half;
     const centerZ = chunkZ * chunkSize + half;
@@ -86,10 +87,12 @@ export class WorldGenerator {
         lake.centerZ < centerZ - half || lake.centerZ >= centerZ + half
       ) continue;
 
-      const water = new THREE.Mesh(this.resources.lakeGeometry, this.resources.waterMaterial);
+      const waterGeometry = this.createLakeGeometry(lake);
+      ownedGeometries.push(waterGeometry);
+      const water = new THREE.Mesh(waterGeometry, this.resources.waterMaterial);
       // Keep the visible water inside the strongly carved part of the basin. The wider outer ring
       // belongs to the shoreline transition and should remain terrain rather than a flat water disc.
-      water.scale.set(lake.radiusX * 0.78, 1, lake.radiusZ * 0.78);
+      water.scale.set(lake.radiusX, 1, lake.radiusZ);
       water.position.set(lake.centerX - centerX, lake.waterLevel + 0.025, lake.centerZ - centerZ);
       water.receiveShadow = true;
       water.renderOrder = 1;
@@ -121,8 +124,31 @@ export class WorldGenerator {
       chunkZ,
       group,
       colliders: colliders.map(entry => entry.box),
-      ground
+      ground,
+      ownedGeometries
     };
+  }
+
+  private createLakeGeometry(lake: ReturnType<TerrainHeight['getLakesInArea']>[number]): THREE.BufferGeometry {
+    const geometry = this.resources.lakeGeometry.clone();
+    const positions = geometry.getAttribute('position') as THREE.BufferAttribute;
+
+    for (let i = 0; i < positions.count; i += 1) {
+      const x = positions.getX(i);
+      const z = positions.getZ(i);
+      const radius = Math.hypot(x, z);
+      if (radius < 0.001) continue;
+      const angle = Math.atan2(z, x);
+      const shoreline = this.terrainHeight.getLakeBoundaryScale(lake, angle);
+      const scale = 0.78 * shoreline;
+      positions.setX(i, x * scale);
+      positions.setZ(i, z * scale);
+    }
+
+    positions.needsUpdate = true;
+    geometry.computeVertexNormals();
+    geometry.computeBoundingSphere();
+    return geometry;
   }
 
   private createTree(

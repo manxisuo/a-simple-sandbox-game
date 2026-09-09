@@ -69,6 +69,7 @@ export class ChunkManager {
   private unloadChunk(key: string, chunk: GeneratedChunk): void {
     this.scene.remove(chunk.group);
     chunk.ground.geometry.dispose();
+    for (const geometry of chunk.ownedGeometries) geometry.dispose();
     this.activeChunks.delete(key);
   }
 
