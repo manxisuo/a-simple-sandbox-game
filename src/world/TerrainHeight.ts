@@ -118,6 +118,10 @@ export class TerrainHeight {
     }));
   }
 
+  getLakeBoundaryScale(lake: LakeDescriptor, angle: number): number {
+    return this.lakes.boundaryScale(lake, angle);
+  }
+
   private getLakeWaterLevel(lake: LakeDescriptor): number {
     return this.getBaseHeight(lake.centerX, lake.centerZ) - 0.2;
   }

@@ -5,6 +5,7 @@ export interface LakeDescriptor {
   radiusX: number;
   radiusZ: number;
   depth: number;
+  shorelineSeed: number;
 }
 
 type HeightSampler = (worldX: number, worldZ: number) => number;
@@ -32,7 +33,7 @@ export class LakeField {
   private readonly seed: number;
   private readonly sampleHeight: HeightSampler;
   private readonly cellSize = 92;
-  private readonly maxRadius = 20;
+  private readonly maxRadius = 23;
 
   constructor(seed: number, sampleHeight: HeightSampler) {
     this.seed = seed;
@@ -68,7 +69,16 @@ export class LakeField {
   normalizedDistance(lake: LakeDescriptor, worldX: number, worldZ: number): number {
     const dx = (worldX - lake.centerX) / lake.radiusX;
     const dz = (worldZ - lake.centerZ) / lake.radiusZ;
-    return Math.sqrt(dx * dx + dz * dz);
+    const angle = Math.atan2(dz, dx);
+    return Math.sqrt(dx * dx + dz * dz) / this.boundaryScale(lake, angle);
+  }
+
+  boundaryScale(lake: LakeDescriptor, angle: number): number {
+    const phase = (lake.shorelineSeed / 4294967295) * Math.PI * 2;
+    return 1
+      + Math.sin(angle * 3 + phase) * 0.075
+      + Math.sin(angle * 5 - phase * 1.7) * 0.045
+      + Math.sin(angle * 9 + phase * 0.6) * 0.022;
   }
 
   private lakeForCell(cellX: number, cellZ: number): LakeDescriptor | null {
@@ -109,7 +119,8 @@ export class LakeField {
       centerZ,
       radiusX,
       radiusZ,
-      depth
+      depth,
+      shorelineSeed: hash(this.seed, cellX, cellZ, 0x6b8b4567)
     };
   }
 }

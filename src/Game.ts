@@ -259,6 +259,10 @@ export class Game {
       this.weather.update(time, delta);
       const weatherSnapshot = this.weather.getSnapshot();
       this.weatherRenderer.update(weatherSnapshot, this.player.position, time, delta);
+      const lakeRain = weatherSnapshot.type === 'drizzle' || weatherSnapshot.type === 'rain' || weatherSnapshot.type === 'storm'
+        ? weatherSnapshot.intensity
+        : 0;
+      this.world.updateWater(time, lakeRain);
       this.audio.setWeatherState(weatherSnapshot);
       this.entities.update({ time, delta, playerPosition: this.player.position, daylight: this.dayNight.daylight });
       this.syncEntities(time, delta);

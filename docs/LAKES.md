@@ -24,7 +24,17 @@ WorldGenerator (water surface presentation + object exclusion)
 
 `TerrainHeight` applies a softly blended basin to the normal terrain height and exposes the corresponding local water level. The visible water footprint sits inside the strongly carved part of the basin; the wider outer ring is reserved for shoreline transition. This guarantees the flat water surface does not cut through raised terrain at its edge.
 
-`WorldGenerator` renders an oval water surface using shared Three.js resources and avoids spawning trees or rocks under water.
+`WorldGenerator` renders a deterministic irregular shoreline using a shared Three.js water material and avoids spawning trees or rocks under water. The same shoreline function shapes both the water mesh and the terrain basin, so visual variation cannot push water back through uncarved terrain.
+
+## Water presentation V2
+
+- each lake derives a stable multi-frequency shoreline profile from its deterministic descriptor;
+- the water shader adds restrained wind ripples without changing semantic water height;
+- drizzle, rain, and storms increase surface roughness and add short-lived impact rings;
+- clear, mist, and snow smoothly remove the rain response;
+- animation uniforms are shared by all streamed lakes, keeping per-frame work independent of lake count.
+
+Weather affects presentation only. It does not currently change water level, basin geometry, or lake persistence.
 
 ## Hillside-disc safeguard
 
@@ -45,9 +55,8 @@ This is an intentional staging choice, not the final water model.
 ## Future pressure points
 
 - swimming / buoyancy and underwater camera behavior
-- irregular / terrain-clipped water meshes instead of simple ellipses
-- ripples and shoreline foam
-- rain affecting lake surface presentation
+- terrain-clipped shorelines and shoreline foam
+- physically richer reflection/refraction and underwater presentation
 - reflections or environment-aware water shading
 - aquatic plants and creatures
 - lake-specific world events or anomalies

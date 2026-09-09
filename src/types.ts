@@ -84,6 +84,7 @@ export interface GeneratedChunk {
   group: THREE.Group;
   colliders: THREE.Box3[];
   ground: THREE.Mesh;
+  ownedGeometries: THREE.BufferGeometry[];
 }
 
 export interface ChunkManagerView {
@@ -106,4 +107,5 @@ export interface WorldRuntime {
   rand: RandomSource;
   getHeight(worldX: number, worldZ: number): number;
   setDaylight(daylight: number): void;
+  updateWater(time: number, rainIntensity: number): void;
 }

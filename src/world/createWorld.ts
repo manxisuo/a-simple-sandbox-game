@@ -2,11 +2,13 @@ import * as THREE from 'three';
 import { ChunkManager } from './ChunkManager';
 import { createSeededRandom } from './WorldGenerator';
 import type { WorldConfig, WorldResources, WorldRuntime } from '../types';
+import { createLakeWaterMaterial } from '../rendering/three/createLakeWaterMaterial';
 
 export function createWorld(scene: THREE.Scene, config: WorldConfig): WorldRuntime {
   const rand = createSeededRandom(config.seed ^ 0x51f15e);
   const lakeGeometry = new THREE.CircleGeometry(1, 64);
   lakeGeometry.rotateX(-Math.PI / 2);
+  const lakeWater = createLakeWaterMaterial();
 
   const resources: WorldResources = {
     trunkGeometry: new THREE.CylinderGeometry(1, 1, 1, 10),
@@ -17,15 +19,7 @@ export function createWorld(scene: THREE.Scene, config: WorldConfig): WorldRunti
     trunkMaterial: new THREE.MeshStandardMaterial({ color: 0x6b4226, roughness: 0.82 }),
     crownMaterial: new THREE.MeshStandardMaterial({ color: 0x19783a, roughness: 0.9 }),
     rockMaterial: new THREE.MeshStandardMaterial({ color: 0x6d7677, roughness: 0.95 }),
-    waterMaterial: new THREE.MeshStandardMaterial({
-      color: 0x3c9fc4,
-      roughness: 0.22,
-      metalness: 0.02,
-      transparent: true,
-      opacity: 0.72,
-      depthWrite: false,
-      side: THREE.DoubleSide
-    })
+    waterMaterial: lakeWater.material
   };
 
   const chunkManager = new ChunkManager({ scene, config, resources });
@@ -102,6 +96,9 @@ export function createWorld(scene: THREE.Scene, config: WorldConfig): WorldRunti
     },
     setDaylight(daylight: number): void {
       chunkManager.setDaylight(daylight);
+    },
+    updateWater(time: number, rainIntensity: number): void {
+      lakeWater.update(time, rainIntensity);
     }
   };
 }
