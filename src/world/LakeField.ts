@@ -32,7 +32,7 @@ function unit(seed: number, x: number, z: number, salt: number): number {
 export class LakeField {
   private readonly seed: number;
   private readonly sampleHeight: HeightSampler;
-  private readonly cellSize = 92;
+  private readonly cellSize = 72;
   private readonly maxRadius = 23;
 
   constructor(seed: number, sampleHeight: HeightSampler) {
@@ -82,7 +82,7 @@ export class LakeField {
   }
 
   private lakeForCell(cellX: number, cellZ: number): LakeDescriptor | null {
-    if (unit(this.seed, cellX, cellZ, 0x1a2b3c4d) > 0.34) return null;
+    if (unit(this.seed, cellX, cellZ, 0x1a2b3c4d) > 0.48) return null;
 
     const jitterX = (unit(this.seed, cellX, cellZ, 0x72b4a911) - 0.5) * this.cellSize * 0.48;
     const jitterZ = (unit(this.seed, cellX, cellZ, 0xc1f651c7) - 0.5) * this.cellSize * 0.48;

@@ -36,6 +36,10 @@ WorldGenerator (water surface presentation + object exclusion)
 
 Weather affects presentation only. It does not currently change water level, basin geometry, or lake persistence.
 
+## Discoverability tuning
+
+Lake placement uses 72-metre candidate cells with a 48% attempt rate. Terrain-relief rejection remains unchanged, so the higher encounter rate does not weaken the hillside-disc safeguard. With the default seed this produces roughly 42 accepted lakes per square kilometre and places the nearest lake about 53 metres from spawn, compared with roughly 19 per square kilometre and 88 metres in V1.
+
 ## Hillside-disc safeguard
 
 The first implementation could place a large flat water ellipse on sloped terrain, producing an obvious blue disc intersecting a hillside. V1.1 addresses that in three layers:
