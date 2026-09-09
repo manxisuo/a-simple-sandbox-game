@@ -66,15 +66,15 @@ export interface UIController {
 }
 
 export interface WorldResources {
-  boxGeometry: THREE.BufferGeometry;
   trunkGeometry: THREE.BufferGeometry;
   crownGeometry: THREE.BufferGeometry;
   rockGeometry: THREE.BufferGeometry;
+  lakeGeometry: THREE.BufferGeometry;
   groundMaterial: THREE.MeshStandardMaterial;
-  boxMaterial: THREE.MeshStandardMaterial;
   trunkMaterial: THREE.MeshStandardMaterial;
   crownMaterial: THREE.MeshStandardMaterial;
   rockMaterial: THREE.MeshStandardMaterial;
+  waterMaterial: THREE.MeshStandardMaterial;
 }
 
 export interface GeneratedChunk {

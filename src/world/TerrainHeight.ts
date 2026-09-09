@@ -1,4 +1,5 @@
 import type { WorldConfig } from '../types';
+import { LakeField, type LakeDescriptor } from './LakeField';
 
 function hash2D(seed: number, x: number, z: number): number {
   let h = seed >>> 0;
@@ -55,16 +56,73 @@ function fbm(seed: number, x: number, z: number, octaves = 4): number {
   return total / normalization;
 }
 
+export interface LakeSurface extends LakeDescriptor {
+  waterLevel: number;
+}
+
 export class TerrainHeight {
   private readonly seed: number;
   private readonly terrain: WorldConfig['terrain'];
+  private readonly lakes: LakeField;
 
   constructor(config: WorldConfig) {
     this.seed = config.seed;
     this.terrain = config.terrain;
+    this.lakes = new LakeField(config.seed ^ 0x4c414b45, (x, z) => this.getBaseHeight(x, z));
   }
 
   getHeight(worldX: number, worldZ: number): number {
+    let height = this.getBaseHeight(worldX, worldZ);
+
+    for (const lake of this.lakes.getNearPoint(worldX, worldZ)) {
+      const distance = this.lakes.normalizedDistance(lake, worldX, worldZ);
+      if (distance >= 1) continue;
+
+      const waterLevel = this.getLakeWaterLevel(lake);
+      const waterRadius = 0.78;
+      const basin = 1 - smoothstep(Math.min(1, distance / waterRadius));
+      const targetBed = waterLevel - lake.depth * (0.42 + basin * 0.58);
+
+      if (distance <= waterRadius) {
+        // The visible water footprint is guaranteed to sit above carved terrain. This avoids a
+        // flat water plane intersecting a hillside even when the original local terrain varied.
+        height = Math.min(height, targetBed);
+        continue;
+      }
+
+      // Outside the visible water footprint, blend the basin back into the original terrain over
+      // the remaining radius to produce a soft bank instead of a sharp circular cut.
+      const shoreT = (distance - waterRadius) / Math.max(0.001, 1 - waterRadius);
+      const shoreBlend = 1 - smoothstep(Math.min(1, Math.max(0, shoreT)));
+      height = Math.min(height, lerp(height, targetBed, shoreBlend));
+    }
+
+    return height;
+  }
+
+  getWaterSurface(worldX: number, worldZ: number): number | null {
+    let surface: number | null = null;
+    for (const lake of this.lakes.getNearPoint(worldX, worldZ)) {
+      if (this.lakes.normalizedDistance(lake, worldX, worldZ) >= 0.78) continue;
+      const waterLevel = this.getLakeWaterLevel(lake);
+      if (this.getHeight(worldX, worldZ) >= waterLevel - 0.02) continue;
+      surface = surface === null ? waterLevel : Math.max(surface, waterLevel);
+    }
+    return surface;
+  }
+
+  getLakesInArea(minX: number, maxX: number, minZ: number, maxZ: number): LakeSurface[] {
+    return this.lakes.getInArea(minX, maxX, minZ, maxZ).map(lake => ({
+      ...lake,
+      waterLevel: this.getLakeWaterLevel(lake)
+    }));
+  }
+
+  private getLakeWaterLevel(lake: LakeDescriptor): number {
+    return this.getBaseHeight(lake.centerX, lake.centerZ) - 0.2;
+  }
+
+  private getBaseHeight(worldX: number, worldZ: number): number {
     const {
       macroScale,
       macroAmplitude,
